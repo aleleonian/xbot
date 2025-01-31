@@ -1,8 +1,8 @@
 {
-  "name": "xbot",
+  "name": "xbot-js",
   "version": "1.0.0",
   "description": "",
-  "main": "src/xbot.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
