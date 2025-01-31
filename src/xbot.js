@@ -1,5 +1,3 @@
-import * as constants from "../util/constants";
-import { encode } from "../util/messaging";
 import { waitForNewReport } from "../util/event-emitter";
 import { sendMessageToMainWindow } from "../util/messaging";
 import * as common from "../util/common";
@@ -1158,13 +1156,7 @@ class XBot {
     let scrollPosition = 0;
 
     while (this.keepScraping) {
-      showProgressFunction(
-        encode(
-          constants.progress.INIT_PROGRESS,
-          constants.progress.LOGGED_IN,
-          constants.progress.SCRAPING
-        )
-      );
+      showProgressFunction();
       let howManyStoredBookmarks = await this.storeBookmarks();
       common.debugLog("howManyStoredBookmarks->", howManyStoredBookmarks);
       if (howManyStoredBookmarks == -1) break;
