@@ -411,7 +411,6 @@ class XBot {
         "arkoseFrame exists! we need you to do stuff"
       );
       return true;
-      // return await this.findTextInFrame(arkoseFrame, process.env.TWITTER_AUTHENTICATE_TEXT);
     } else {
       common.debugLog(
         process.env.DEBUG,
