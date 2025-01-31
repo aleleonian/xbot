@@ -1,16 +1,16 @@
-import { waitForNewReport } from "../util/event-emitter";
-import { sendMessageToMainWindow } from "../util/messaging";
-import * as common from "../util/common";
+import * as common from "./util/common";
 
-const { exec } = require("child_process");
-const puppeteer = require("puppeteer-extra");
-const pluginStealth = require("puppeteer-extra-plugin-stealth");
+import * as cheerio from "cheerio";
+
+
+import { exec } from "child_process";
+import puppeteer from "puppeteer-extra";
+import pluginStealth from "puppeteer-extra-plugin-stealth";
 puppeteer.use(pluginStealth());
-const path = require("path");
-const cheerio = require("cheerio");
 
-const fs = require("fs");
-const https = require("https");
+import path from "path";
+import fs from "fs";
+import https from "https";
 
 // const puppeteerClassic = require("puppeteer");
 // const iPhone = KnownDevices["iPhone X"];
@@ -131,7 +131,7 @@ class XBot {
   getTweet(userId) {
     return this.tweets[userId];
   }
-  async init() {
+  async init(showProgressFunction, sendMessageToMainWindow, waitForNewReport) {
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
       ignoreDefaultArgs: ["--enable-automation"],
@@ -1150,7 +1150,7 @@ class XBot {
     }
     return this.bookmarks.length;
   };
-  scrapeBookmarks = async (showProgressFunction) => {
+  scrapeBookmarks = async () => {
     this.keepScraping = true;
     let bookmarksCopy = [];
     let scrollPosition = 0;
