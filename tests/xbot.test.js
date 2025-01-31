@@ -1,4 +1,4 @@
-import { XBot } from "../index.js";
+import { XBot } from "../src/index.js";
 
 test("XBot initializes properly", async () => {
     const bot = new XBot();
