@@ -10,3 +10,4 @@ export function createSuccessResponse(data: any): {
 };
 export function debugLog(...strings: any[]): void;
 export function errorLog(...strings: any[]): void;
+//# sourceMappingURL=common.d.ts.map

@@ -1,36 +1,45 @@
-import fetch from "node-fetch"; // You can use axios or native fetch if you're in the browser
-export const wait = (ms) => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.errorLog = exports.debugLog = exports.createSuccessResponse = exports.createErrorResponse = exports.wait = void 0;
+exports.loadEnvFromUrl = loadEnvFromUrl;
+const node_fetch_1 = require("node-fetch"); // You can use axios or native fetch if you're in the browser
+const wait = (ms) => {
     return new Promise((resolve) => setTimeout(resolve, ms));
 };
-export const createErrorResponse = (errorMessage) => {
+exports.wait = wait;
+const createErrorResponse = (errorMessage) => {
     let responseObj = {};
     responseObj.success = false;
     responseObj.errorMessage = errorMessage;
     return responseObj;
 };
-export const createSuccessResponse = (data) => {
+exports.createErrorResponse = createErrorResponse;
+const createSuccessResponse = (data) => {
     let responseObj = {};
     responseObj.success = true;
     if (data)
         responseObj.data = data;
     return responseObj;
 };
-export const debugLog = (...strings) => {
+exports.createSuccessResponse = createSuccessResponse;
+const debugLog = (...strings) => {
     const debugValue = process.env.DEBUG;
     const string = strings.join(" "); // Join with space for readability
     if (debugValue) {
         console.log(string);
     }
 };
-export const errorLog = (...strings) => {
+exports.debugLog = debugLog;
+const errorLog = (...strings) => {
     const string = strings.join(" "); // Join with space for readability
     console.log(string);
 };
+exports.errorLog = errorLog;
 // Function to fetch and load .env variables
-export async function loadEnvFromUrl(envUrl) {
+async function loadEnvFromUrl(envUrl) {
     try {
         // Fetch the .env file content from the provided URL
-        const response = await fetch(envUrl);
+        const response = await (0, node_fetch_1.default)(envUrl);
         if (!response.ok) {
             throw new Error(`Failed to fetch .env file: ${response.statusText}`);
         }
@@ -50,9 +59,9 @@ export async function loadEnvFromUrl(envUrl) {
             }
         });
         // Log to confirm
-        debugLog("Environment variables loaded from URL: ");
+        (0, exports.debugLog)("Environment variables loaded from URL: ");
         for (const [key, value] of Object.entries(process.env)) {
-            debugLog(`${key}: ${value}`);
+            (0, exports.debugLog)(`${key}: ${value}`);
         }
     }
     catch (error) {

@@ -1,12 +1,14 @@
-import * as common from "./util/common";
-import * as cheerio from "cheerio";
-import { exec } from "child_process";
-import puppeteer from "puppeteer-extra";
-import pluginStealth from "puppeteer-extra-plugin-stealth";
-puppeteer.use(pluginStealth());
-import path from "path";
-import fs from "fs";
-import https from "https";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const common = require("./util/common.js");
+const cheerio = require("cheerio");
+const child_process_1 = require("child_process");
+const puppeteer_extra_1 = require("puppeteer-extra");
+const puppeteer_extra_plugin_stealth_1 = require("puppeteer-extra-plugin-stealth");
+puppeteer_extra_1.default.use((0, puppeteer_extra_plugin_stealth_1.default)());
+const path_1 = require("path");
+const fs_1 = require("fs");
+const https_1 = require("https");
 // const puppeteerClassic = require("puppeteer");
 // const iPhone = KnownDevices["iPhone X"];
 // const KnownDevices = puppeteerClassic.KnownDevices;
@@ -186,10 +188,10 @@ class XBot {
         return new Promise((resolve) => {
             try {
                 // Path to save the image
-                const savePath = path.join(saveDir, saveFileName);
+                const savePath = path_1.default.join(saveDir, saveFileName);
                 // Download and save the image
-                const file = fs.createWriteStream(savePath);
-                https
+                const file = fs_1.default.createWriteStream(savePath);
+                https_1.default
                     .get(imageUrl, (response) => {
                     if (response.statusCode === 200) {
                         response.pipe(file);
@@ -222,7 +224,7 @@ class XBot {
         return new Promise((resolve) => {
             try {
                 const command = `${process.env.YTDLP_INSTALLATION} --ffmpeg-location ${process.env.FFMPEG_INSTALLATION} -o "${saveDir}/${saveFileName}" ${videoPageurl}`;
-                exec(command, (error, stdout, stderr) => {
+                (0, child_process_1.exec)(command, (error, stdout, stderr) => {
                     if (error) {
                         common.errorLog(`Error executing yt-dlp: ${error.message}`);
                         resolve(common.createErrorResponse(error.message));
@@ -275,7 +277,7 @@ class XBot {
         if (process.env.EXECUTABLE_PATH) {
             pupConfig.executablePath = process.env.EXECUTABLE_PATH;
         }
-        const browser = await puppeteer.launch(pupConfig);
+        const browser = await puppeteer_extra_1.default.launch(pupConfig);
         let responseObject = {};
         if (!browser) {
             responseObject = {
@@ -309,7 +311,7 @@ class XBot {
     }
     async takePic(filePath) {
         if (!filePath) {
-            filePath = path.resolve(__dirname, "../public/images/xBotSnap.jpg");
+            filePath = path_1.default.resolve(__dirname, "../public/images/xBotSnap.jpg");
         }
         try {
             await this.page.screenshot({ path: filePath });
@@ -907,4 +909,4 @@ class XBot {
         return Promise.race([promise, timeout]);
     }
 }
-export default XBot;
+exports.default = XBot;

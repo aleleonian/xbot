@@ -1,4 +1,4 @@
-import * as common from "./util/common";
+import * as common from "./util/common.js";
 
 import * as cheerio from "cheerio";
 

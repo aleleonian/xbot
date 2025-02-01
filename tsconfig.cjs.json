@@ -1,7 +1,13 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "outDir": "dist/cjs"
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2020",
+    "declaration": true,
+    "outDir": "dist/cjs",
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "skipLibCheck": true
   }
 }

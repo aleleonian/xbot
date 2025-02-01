@@ -70,10 +70,17 @@ declare class XBot {
         path?: undefined;
     }>;
     deleteTwitterBookmarks2(): Promise<any>;
-    deleteTwitterBookmarks2Core(): Promise<any>;
+    deleteTwitterBookmarks2Core(): Promise<{
+        success: boolean;
+        errorMessage: any;
+    } | {
+        success: boolean;
+        data: any;
+    }>;
     deleteTwitterBookmarks(): Promise<void>;
     storeBookmarks: () => Promise<number>;
     scrapeBookmarks: () => Promise<any[]>;
     isScrolledToBottom: () => Promise<any>;
     withTimeout(id: any, promise: any, ms: any): Promise<any>;
 }
+//# sourceMappingURL=xbot.d.ts.map
