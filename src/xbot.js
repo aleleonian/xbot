@@ -132,6 +132,10 @@ class XBot {
     return this.tweets[userId];
   }
   async init(showProgressFunction, sendMessageToMainWindow, waitForNewReport) {
+    this.showProgressFunction = showProgressFunction;
+    this.sendMessageToMainWindow = sendMessageToMainWindow;
+    this.waitForNewReport = waitForNewReport;
+
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
       ignoreDefaultArgs: ["--enable-automation"],
@@ -1040,11 +1044,11 @@ class XBot {
         .eq(2)
         .attr("href");
 
-      sendMessageToMainWindow("CHECK_SAVED_TWEET_EXISTS", newBookmarkTweetUrl);
+      this.sendMessageToMainWindow("CHECK_SAVED_TWEET_EXISTS", newBookmarkTweetUrl);
 
       common.debugLog("gonna wait for waitForNewReport()");
 
-      const waitForNewReportResponse = await waitForNewReport();
+      const waitForNewReportResponse = await this.waitForNewReport();
 
       common.debugLog(
         process.env.DEBUG,
@@ -1090,7 +1094,7 @@ class XBot {
 
             if (!fetchVideoResult.success) {
               newBookmark.hasLocalMedia = "no";
-              sendMessageToMainWindow(
+              this.sendMessageToMainWindow(
                 "NOTIFICATION",
                 `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`
               );
@@ -1111,7 +1115,7 @@ class XBot {
               newBookmark.tweetUrlHash + ".jpg"
             );
             if (!fecthImageResult.success) {
-              sendMessageToMainWindow(
+              this.sendMessageToMainWindow(
                 "NOTIFICATION",
                 `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`
               );
@@ -1155,7 +1159,7 @@ class XBot {
     let scrollPosition = 0;
 
     while (this.keepScraping) {
-      showProgressFunction();
+      this.showProgressFunction();
       let howManyStoredBookmarks = await this.storeBookmarks();
       common.debugLog("howManyStoredBookmarks->", howManyStoredBookmarks);
       if (howManyStoredBookmarks == -1) break;
