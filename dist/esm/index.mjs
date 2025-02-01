@@ -1,3 +1,3 @@
-import XBot from "./xbot.js";
+import XBot from "./xbot.mjs";
 export { XBot };
 export default XBot;

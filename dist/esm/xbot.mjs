@@ -1,4 +1,4 @@
-import * as common from "./util/common.js";
+import * as common from "./util/common.mjs";
 import * as cheerio from "cheerio";
 import { exec } from "child_process";
 import puppeteer from "puppeteer-extra";
