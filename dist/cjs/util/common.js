@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorLog = exports.debugLog = exports.createSuccessResponse = exports.createErrorResponse = exports.wait = void 0;
 exports.loadEnvFromUrl = loadEnvFromUrl;
+exports.createHash = createHash;
+const crypto = require("crypto");
 const node_fetch_1 = require("node-fetch"); // You can use axios or native fetch if you're in the browser
 const wait = (ms) => {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,3 +70,9 @@ async function loadEnvFromUrl(envUrl) {
         console.error("Error loading .env file:", error);
     }
 }
+function createHash(inputString) {
+    const hash = crypto.createHash("md5");
+    hash.update(inputString);
+    return hash.digest("hex");
+}
+//# sourceMappingURL=common.js.map

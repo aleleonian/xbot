@@ -1,4 +1,5 @@
 export function loadEnvFromUrl(envUrl: any): Promise<void>;
+export function createHash(inputString: any): string;
 export function wait(ms: any): Promise<any>;
 export function createErrorResponse(errorMessage: any): {
     success: boolean;

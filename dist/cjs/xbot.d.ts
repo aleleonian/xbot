@@ -10,15 +10,15 @@ declare class XBot {
     keepScraping: boolean;
     fetchAndSaveImage(imageUrl: any, saveDir: any, saveFileName: any): Promise<any>;
     fetchAndSaveVideo(videoPageurl: any, saveDir: any, saveFileName: any): Promise<any>;
-    getId(divHtmlContent: any): any;
+    getId(divHtmlContent: any): string;
     setBusy(state: any): boolean;
     getTweet(userId: any): any;
     init(showProgressFunction: any, sendMessageToMainWindow: any, waitForNewReport: any): Promise<{}>;
     showProgressFunction: any;
     sendMessageToMainWindow: any;
     waitForNewReport: any;
-    browser: any;
-    page: any;
+    browser: import("puppeteer").Browser | undefined;
+    page: import("puppeteer").Page | undefined;
     goto(urlToVisit: any): Promise<boolean>;
     takePic(filePath: any): Promise<boolean>;
     findAndType(targetElement: any, text: any): Promise<boolean>;
@@ -28,10 +28,10 @@ declare class XBot {
         success: boolean;
         text: any;
     }>;
-    getCurrentBotUrl(): any;
-    findTextInPage(targetText: any): Promise<any>;
+    getCurrentBotUrl(): string;
+    findTextInPage(targetText: any): Promise<boolean>;
     findTextInFrame(iFrame: any, targetText: any): Promise<any>;
-    getLastTweetUrl(): Promise<any>;
+    getLastTweetUrl(): Promise<string | false>;
     tweet(userId: any, text: any): Promise<{
         success: any;
         message: any;
@@ -39,12 +39,12 @@ declare class XBot {
     }>;
     twitterSuspects(): Promise<boolean>;
     twitterRequiresCaptcha(): Promise<boolean>;
-    unusualLoginDetected(): Promise<any>;
+    unusualLoginDetected(): Promise<boolean>;
     arkoseChallengeDetected(): Promise<true | undefined>;
     twitterWantsVerification(): Promise<false | {
         success: boolean;
     }>;
-    closeBrowser(): Promise<any>;
+    closeBrowser(): Promise<void>;
     lookForWrongLoginInfoDialog(textToLookFor: any): Promise<boolean>;
     logOut(): Promise<boolean>;
     loginToX(botUsername: any, botPassword: any, botEmail: any): Promise<{
@@ -83,6 +83,6 @@ declare class XBot {
     deleteTwitterBookmarks(): Promise<void>;
     storeBookmarks: () => Promise<number>;
     scrapeBookmarks: () => Promise<any[]>;
-    isScrolledToBottom: () => Promise<any>;
+    isScrolledToBottom: () => Promise<boolean>;
     withTimeout(id: any, promise: any, ms: any): Promise<any>;
 }

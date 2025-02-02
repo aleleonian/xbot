@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import fetch from "node-fetch"; // You can use axios or native fetch if you're in the browser
 
 export const wait = (ms) => {
@@ -65,4 +66,10 @@ export async function loadEnvFromUrl(envUrl) {
   } catch (error) {
     console.error("Error loading .env file:", error);
   }
+}
+
+export function createHash(inputString) {
+  const hash = crypto.createHash("md5");
+  hash.update(inputString);
+  return hash.digest("hex");
 }

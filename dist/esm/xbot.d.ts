@@ -10,7 +10,7 @@ declare class XBot {
     keepScraping: boolean;
     fetchAndSaveImage(imageUrl: any, saveDir: any, saveFileName: any): Promise<any>;
     fetchAndSaveVideo(videoPageurl: any, saveDir: any, saveFileName: any): Promise<any>;
-    getId(divHtmlContent: any): any;
+    getId(divHtmlContent: any): string;
     setBusy(state: any): boolean;
     getTweet(userId: any): any;
     init(showProgressFunction: any, sendMessageToMainWindow: any, waitForNewReport: any): Promise<{}>;
