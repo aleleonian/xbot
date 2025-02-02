@@ -1,6 +1,6 @@
 {
   "name": "xbot-js",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "An automated Twitter bookmark manager using Puppeteer.",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.mjs",
