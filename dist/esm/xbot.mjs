@@ -27,18 +27,18 @@ class XBot {
             }
             let processedBookmarks = htmlContentDivs
                 .map((div) => {
-                    // if div is the last bookmark, do not include it
-                    const $ = cheerio.load(div);
-                    const divWithTestId = $('div[data-testid="cellInnerDiv"]');
-                    const isLastBookmark = divWithTestId.children(".css-175oi2r.r-4d76ec").length > 0;
-                    if (isLastBookmark) {
-                        return null;
-                    }
-                    const divItem = {};
-                    divItem.htmlContent = div;
-                    divItem.indexId = this.getId(div);
-                    return divItem;
-                })
+                // if div is the last bookmark, do not include it
+                const $ = cheerio.load(div);
+                const divWithTestId = $('div[data-testid="cellInnerDiv"]');
+                const isLastBookmark = divWithTestId.children(".css-175oi2r.r-4d76ec").length > 0;
+                if (isLastBookmark) {
+                    return null;
+                }
+                const divItem = {};
+                divItem.htmlContent = div;
+                divItem.indexId = this.getId(div);
+                return divItem;
+            })
                 .filter((item) => item !== null);
             for (const newBookmark of processedBookmarks) {
                 const $ = cheerio.load(newBookmark.htmlContent);
@@ -78,17 +78,10 @@ class XBot {
                             newBookmark.hasLocalMedia = "image";
                             const tweetPhothUrl = $('[data-testid="tweetPhoto"] img').attr("src");
                             debugLog(process.env.DEBUG, "Gotta download this pic: ", tweetPhothUrl);
-                            try {
-                                const fecthImageResult = await this.fetchAndSaveImage(tweetPhothUrl, process.env.MEDIA_FOLDER, newBookmark.tweetUrlHash + ".jpg");
-                                if (!fecthImageResult.success) {
-                                    this.sendMessageToMainWindow("NOTIFICATION", `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
-                                    newBookmark.hasLocalMedia = "no";
-                                }
-                            }
-                            catch (error) {
+                            const fecthImageResult = await this.fetchAndSaveImage(tweetPhothUrl, process.env.MEDIA_FOLDER, newBookmark.tweetUrlHash + ".jpg");
+                            if (!fecthImageResult.success) {
                                 this.sendMessageToMainWindow("NOTIFICATION", `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
                                 newBookmark.hasLocalMedia = "no";
-                                debugLog("Could not save ", tweetPhothUrl);
                             }
                         }
                     }
@@ -198,25 +191,25 @@ class XBot {
                 const file = fs.createWriteStream(savePath);
                 https
                     .get(imageUrl, (response) => {
-                        if (response.statusCode === 200) {
-                            response.pipe(file);
-                            file.on("finish", () => {
-                                file.close();
-                                debugLog(process.env.DEBUG, `Image saved to ${savePath}`);
-                                resolve(createSuccessResponse());
-                            });
-                        }
-                        else {
-                            const errorMessage = `Failed to fetch image. Status code: ${response.statusCode}`;
-                            debugLog(errorMessage);
-                            resolve(createErrorResponse(errorMessage));
-                        }
-                    })
-                    .on("error", (err) => {
-                        const errorMessage = `Error fetching the image: ${err.message}`;
-                        errorLog(errorMessage);
+                    if (response.statusCode === 200) {
+                        response.pipe(file);
+                        file.on("finish", () => {
+                            file.close();
+                            debugLog(process.env.DEBUG, `Image saved to ${savePath}`);
+                            resolve(createSuccessResponse());
+                        });
+                    }
+                    else {
+                        const errorMessage = `Failed to fetch image. Status code: ${response.statusCode}`;
+                        debugLog(errorMessage);
                         resolve(createErrorResponse(errorMessage));
-                    });
+                    }
+                })
+                    .on("error", (err) => {
+                    const errorMessage = `Error fetching the image: ${err.message}`;
+                    errorLog(errorMessage);
+                    resolve(createErrorResponse(errorMessage));
+                });
             }
             catch (error) {
                 const errorMessage = `Error fetching the image: ${error.message}`;

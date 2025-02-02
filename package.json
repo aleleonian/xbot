@@ -1,6 +1,6 @@
 {
   "name": "xbot-js",
-  "version": "1.0.13",
+  "version": "1.1.1",
   "description": "An automated Twitter bookmark manager using Puppeteer.",
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.mjs",
@@ -33,9 +33,7 @@
     "@types/yargs": "^17.0.33",
     "@types/yargs-parser": "^21.0.3",
     "@types/yauzl": "^2.10.3",
-    "typescript": "^5.7.3"
-  },
-  "dependencies": {
+    "typescript": "^5.7.3",
     "cheerio": "^1.0.0",
     "crypto": "^1.0.1",
     "node-fetch": "^3.3.2",
