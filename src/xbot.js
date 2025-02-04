@@ -2,7 +2,7 @@ import { createErrorResponse, createHash, createSuccessResponse, debugLog, error
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
-import { EventEmitter } from "node:events";
+import { EventEmitter } from "events";
 import { XBotEvents } from "./util/constants.js"; // Import event constants
 
 import { exec } from "child_process";
@@ -156,8 +156,6 @@ class XBot extends EventEmitter {
   }
   async init(logger) {
     if (logger) this.logger = logger
-    this.logger("gonna emit a event of type ", XBotEvents.NOTIFICATION);
-    this.emit("notification", `success--xBot init!`);
 
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
@@ -1069,8 +1067,6 @@ class XBot extends EventEmitter {
 
       // this.emit(XBotEvents.CHECK_SAVED_TWEET_EXISTS, newBookmarkTweetUrl);
 
-      // this.sendMessageToMainWindow("CHECK_SAVED_TWEET_EXISTS", newBookmarkTweetUrl);
-
       // this.logger("gonna wait for waitForNewReport()");
 
       // const waitForNewReportResponse = await this.waitForNewReport();
@@ -1120,10 +1116,6 @@ class XBot extends EventEmitter {
             if (!fetchVideoResult.success) {
               newBookmark.hasLocalMedia = "no";
               this.emit(XBotEvents.NOTIFICATION, `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
-              // this.sendMessageToMainWindow(
-              //   "NOTIFICATION",
-              //   `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`
-              // );
             }
           } else if (imageDiv.length > 0) {
             newBookmark.hasLocalMedia = "image";
@@ -1142,11 +1134,6 @@ class XBot extends EventEmitter {
             );
             if (!fecthImageResult.success) {
               this.emit(XBotEvents.NOTIFICATION, `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
-
-              // this.sendMessageToMainWindow(
-              //   "NOTIFICATION",
-              //   `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`
-              // );
               newBookmark.hasLocalMedia = "no";
             }
           }
