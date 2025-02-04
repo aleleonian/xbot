@@ -38,41 +38,36 @@ class XBot extends EventEmitter {
     this.emit(XBotEvents.LOG, level, ...messages);
   }
 
-  async fetchAndSaveImage(imageUrl, saveDir, saveFileName) {
-    try {
-      return new Promise((resolve) => {
-        // Path to save the image
-        const savePath = path.join(saveDir, saveFileName);
-
-        // Download and save the image
-        const file = fs.createWriteStream(savePath);
-        https
-          .get(imageUrl, (response) => {
-            if (response.statusCode === 200) {
-              response.pipe(file);
-              file.on("finish", () => {
-                file.close();
-                this.emit(XBotEvents.LOG, LOG_LEVELS.INFO, `Image saved to ${savePath}`);
-                resolve(createSuccessResponse());
-              });
-            } else {
-              const errorMessage = `Failed to fetch image. Status code: ${response.statusCode}`;
-              this.emit(XBotEvents.LOG, LOG_LEVELS.ERROR, errorMessage);
-              resolve(createErrorResponse(errorMessage));
-            }
-          })
-          .on("error", (err) => {
-            const errorMessage = `Error fetching the image: ${err.message}`;
+  fetchAndSaveImage(imageUrl, saveDir, saveFileName) {
+    return new Promise((resolve) => {
+      const savePath = path.join(saveDir, saveFileName);
+      // Download and save the image
+      const file = fs.createWriteStream(savePath);
+      https
+        .get(imageUrl, (response) => {
+          if (response.statusCode === 200) {
+            response.pipe(file);
+            file.on("finish", () => {
+              file.close();
+              this.emit(XBotEvents.LOG, LOG_LEVELS.INFO, `Image saved to ${savePath}`);
+              resolve(createSuccessResponse());
+            });
+          } else {
+            const errorMessage = `Failed to fetch image. Status code: ${response.statusCode}`;
             this.emit(XBotEvents.LOG, LOG_LEVELS.ERROR, errorMessage);
             resolve(createErrorResponse(errorMessage));
-          });
-      });
-    }
-    catch (error) {
+          }
+        })
+        .on("error", (err) => {
+          const errorMessage = `Error fetching the image: ${err.message}`;
+          this.emit(XBotEvents.LOG, LOG_LEVELS.ERROR, errorMessage);
+          resolve(createErrorResponse(errorMessage));
+        });
+    }).catch(error => {
       const errorMessage = `Error fetching the image: ${error.message}`;
       this.emit(XBotEvents.LOG, LOG_LEVELS.ERROR, errorMessage);
       resolve(createErrorResponse(errorMessage));
-    }
+    });
   }
 
   async fetchAndSaveVideo(videoPageUrl, saveDir, saveFileName) {
