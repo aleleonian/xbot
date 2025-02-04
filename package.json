@@ -11,7 +11,7 @@
     "default": "./dist/esm/index.mjs"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.cjs.json && tsc --project tsconfig.esm.json && find dist/esm -name '*.js' -exec bash -c 'mv \"$0\" \"${0%.js}.mjs\"' {} \\; && find dist/esm -name '*.mjs' -exec sed -i '' -E 's|(from \\\"(.*))\\.js(\\\")|\\1.mjs\\3|g' {} +",
+    "build": "tsc --project tsconfig.cjs.json && tsc --project tsconfig.esm.json && find dist/esm -name '*.js' -exec bash -c 'mv \"$0\" \"${0%.js}.mjs\"' {} \\; && find dist/esm -name '*.mjs' -exec sed -i '' -E \"s|(from ['\\\"]([^'\\\"]+))\\.js(['\\\"])|\\1.mjs\\3|g\" {} +",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
     "prepare": "npm run build"
