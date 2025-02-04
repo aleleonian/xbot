@@ -2,7 +2,7 @@ import { createErrorResponse, createHash, createSuccessResponse, debugLog, error
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { XBotEvents } from "./util/constants.js"; // Import event constants
 
 import { exec } from "child_process";
@@ -154,11 +154,10 @@ class XBot extends EventEmitter {
   getTweet(userId) {
     return this.tweets[userId];
   }
-  async init(logger, sendMessageToMainWindow, waitForNewReport) {
+  async init(logger) {
     if (logger) this.logger = logger
-
-    this.sendMessageToMainWindow = sendMessageToMainWindow;
-    this.waitForNewReport = waitForNewReport;
+    this.logger("gonna emit a event of type ", XBotEvents.NOTIFICATION);
+    this.emit("notification", `success--xBot init!`);
 
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
@@ -1068,25 +1067,27 @@ class XBot extends EventEmitter {
         .eq(2)
         .attr("href");
 
-      this.sendMessageToMainWindow("CHECK_SAVED_TWEET_EXISTS", newBookmarkTweetUrl);
+      // this.emit(XBotEvents.CHECK_SAVED_TWEET_EXISTS, newBookmarkTweetUrl);
 
-      this.logger("gonna wait for waitForNewReport()");
+      // this.sendMessageToMainWindow("CHECK_SAVED_TWEET_EXISTS", newBookmarkTweetUrl);
 
-      const waitForNewReportResponse = await this.waitForNewReport();
+      // this.logger("gonna wait for waitForNewReport()");
 
-      this.logger(
-        process.env.DEBUG,
-        "waitForNewReportResponse->",
-        JSON.stringify(waitForNewReportResponse)
-      );
+      // const waitForNewReportResponse = await this.waitForNewReport();
 
-      if (waitForNewReportResponse.success) {
-        this.logger(
-          process.env.DEBUG,
-          waitForNewReportResponse.tweetUrl + " already exists, skipping!"
-        );
-        continue;
-      }
+      // this.logger(
+      //   process.env.DEBUG,
+      //   "waitForNewReportResponse->",
+      //   JSON.stringify(waitForNewReportResponse)
+      // );
+
+      // if (waitForNewReportResponse.success) {
+      //   this.logger(
+      //     process.env.DEBUG,
+      //     waitForNewReportResponse.tweetUrl + " already exists, skipping!"
+      //   );
+      //   continue;
+      // }
 
       // have we processed this bookmark already?
       const idExists = this.bookmarks.some(
@@ -1118,10 +1119,11 @@ class XBot extends EventEmitter {
 
             if (!fetchVideoResult.success) {
               newBookmark.hasLocalMedia = "no";
-              this.sendMessageToMainWindow(
-                "NOTIFICATION",
-                `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`
-              );
+              this.emit(XBotEvents.NOTIFICATION, `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
+              // this.sendMessageToMainWindow(
+              //   "NOTIFICATION",
+              //   `error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`
+              // );
             }
           } else if (imageDiv.length > 0) {
             newBookmark.hasLocalMedia = "image";
@@ -1139,10 +1141,12 @@ class XBot extends EventEmitter {
               newBookmark.tweetUrlHash + ".jpg"
             );
             if (!fecthImageResult.success) {
-              this.sendMessageToMainWindow(
-                "NOTIFICATION",
-                `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`
-              );
+              this.emit(XBotEvents.NOTIFICATION, `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
+
+              // this.sendMessageToMainWindow(
+              //   "NOTIFICATION",
+              //   `error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`
+              // );
               newBookmark.hasLocalMedia = "no";
             }
           }
