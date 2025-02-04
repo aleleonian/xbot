@@ -31,6 +31,12 @@ export const errorLog = (...strings) => {
   console.log(string);
 };
 
+export function log(level, ...messages) {
+  if (this.logger) {
+    this.logger(`[${level.toUpperCase()}]`, ...messages);
+  }
+  this.emit(XBotEvents.LOG, level, ...messages); // Also emit logs
+}
 // Function to fetch and load .env variables
 export async function loadEnvFromUrl(envUrl) {
   try {
