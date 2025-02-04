@@ -115,7 +115,7 @@ class XBot extends EventEmitter {
   }
   async init() {
 
-    setEmitter(this.emit);
+    setEmitter(this);
 
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",

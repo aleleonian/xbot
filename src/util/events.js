@@ -3,7 +3,7 @@ import { XBotEvents, LOG_LEVELS } from "./constants.js";
 let eventEmitter;
 
 function fireLog(logType, data) {
-    if (eventEmitter) eventEmitter(XBotEvents.LOG, logType, data);
+    if (eventEmitter) eventEmitter.emit(XBotEvents.LOG, logType, data);
     else {
         console.log("eventEmitter is not set!")
     }
