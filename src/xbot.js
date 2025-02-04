@@ -2,7 +2,8 @@ import { createErrorResponse, createHash, createSuccessResponse, debugLog, error
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
-
+import { EventEmitter } from "events";
+import { XBotEvents } from "./util/constants.js"; // Import event constants
 
 import { exec } from "child_process";
 import puppeteer from "puppeteer-extra";
@@ -20,8 +21,9 @@ import https from "https";
 const BROWSER_OPEN_FAIL = 0;
 const exitCodeStrings = ["Could not open browser :(!"];
 
-class XBot {
+class XBot extends EventEmitter {
   constructor() {
+    super();
     this.browser;
     this.page;
     this.tweets = {};
@@ -152,10 +154,9 @@ class XBot {
   getTweet(userId) {
     return this.tweets[userId];
   }
-  async init(logger, showProgressFunction, sendMessageToMainWindow, waitForNewReport) {
+  async init(logger, sendMessageToMainWindow, waitForNewReport) {
     if (logger) this.logger = logger
 
-    this.showProgressFunction = showProgressFunction;
     this.sendMessageToMainWindow = sendMessageToMainWindow;
     this.waitForNewReport = waitForNewReport;
 
@@ -1182,7 +1183,6 @@ class XBot {
     let scrollPosition = 0;
 
     while (this.keepScraping) {
-      this.showProgressFunction();
       let howManyStoredBookmarks = await this.storeBookmarks();
       this.logger("howManyStoredBookmarks->", howManyStoredBookmarks);
       if (howManyStoredBookmarks == -1) break;
