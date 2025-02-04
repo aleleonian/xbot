@@ -1,5 +1,6 @@
-import { wait, loadEnvFromUrl, createErrorResponse, createHash, createSuccessResponse, debugLog, errorLog } from "./util/common.js";
-
+import { createErrorResponse, createHash, createSuccessResponse, debugLog, errorLog } from "./util/common.js";
+import { promisify } from "util";
+const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
 
 
@@ -28,7 +29,6 @@ class XBot {
     this.isBusy = false;
     this.queue = [];
     this.queueTimer = false;
-    this.monitorFlag = true;
     this.bookmarks = [];
     this.keepScraping = true;
     this.botUsername;
@@ -39,8 +39,8 @@ class XBot {
   }
 
   async fetchAndSaveImage(imageUrl, saveDir, saveFileName) {
-    return new Promise((resolve) => {
-      try {
+    try {
+      return new Promise((resolve) => {
         // Path to save the image
         const savePath = path.join(saveDir, saveFileName);
 
@@ -69,39 +69,59 @@ class XBot {
             errorLog(errorMessage);
             resolve(createErrorResponse(errorMessage));
           });
-      } catch (error) {
-        const errorMessage = `Error fetching the image: ${error.message}`;
-        errorLog(errorMessage);
-        resolve(createErrorResponse(errorMessage));
-      }
-    });
+      });
+    }
+    catch (error) {
+      const errorMessage = `Error fetching the image: ${error.message}`;
+      errorLog(errorMessage);
+      resolve(createErrorResponse(errorMessage));
+    }
   }
 
-  async fetchAndSaveVideo(videoPageurl, saveDir, saveFileName) {
-    return new Promise((resolve) => {
-      try {
-        const command = `${process.env.YTDLP_INSTALLATION} --ffmpeg-location ${process.env.FFMPEG_INSTALLATION} -o "${saveDir}/${saveFileName}" ${videoPageurl}`;
+  async fetchAndSaveVideo(videoPageUrl, saveDir, saveFileName) {
+    try {
+      const command = `${process.env.YTDLP_INSTALLATION} --ffmpeg-location ${process.env.FFMPEG_INSTALLATION} -o "${saveDir}/${saveFileName}" ${videoPageUrl}`;
 
-        exec(command, (error, stdout, stderr) => {
-          if (error) {
-            errorLog(`Error executing yt-dlp: ${error.message}`);
-            resolve(createErrorResponse(error.message));
-            return;
-          }
-          if (stderr) {
-            errorLog(`stderr: ${stderr}`);
-            resolve(createErrorResponse(stderr));
-            return;
-          }
-          debugLog(`stdout: ${stdout}`);
-          resolve(createSuccessResponse(stdout));
-        });
-      } catch (error) {
-        errorLog(`fetchAndSaveVideo: Error occurred: ${error.message}`);
-        resolve(createErrorResponse(error.message));
+      const { stdout, stderr } = await execAsync(command);
+
+      if (stderr) {
+        errorLog(`stderr: ${stderr}`);
+        resolve(createErrorResponse(stderr));
       }
-    });
+
+      debugLog(`✅ Video saved: ${stdout}`);
+      return createSuccessResponse(stdout);
+    } catch (error) {
+      errorLog(`fetchAndSaveVideo error: ${error.message}`);
+      return createErrorResponse(error.message);
+    }
   }
+
+  // async fetchAndSaveVideo(videoPageurl, saveDir, saveFileName) {
+  //   return new Promise((resolve) => {
+  //     try {
+  //       const command = `${process.env.YTDLP_INSTALLATION} --ffmpeg-location ${process.env.FFMPEG_INSTALLATION} -o "${saveDir}/${saveFileName}" ${videoPageurl}`;
+
+  //       exec(command, (error, stdout, stderr) => {
+  //         if (error) {
+  //           errorLog(`Error executing yt-dlp: ${error.message}`);
+  //           resolve(createErrorResponse(error.message));
+  //           return;
+  //         }
+  //         if (stderr) {
+  //           errorLog(`stderr: ${stderr}`);
+  //           resolve(createErrorResponse(stderr));
+  //           return;
+  //         }
+  //         debugLog(`stdout: ${stdout}`);
+  //         resolve(createSuccessResponse(stdout));
+  //       });
+  //     } catch (error) {
+  //       errorLog(`fetchAndSaveVideo: Error occurred: ${error.message}`);
+  //       resolve(createErrorResponse(error.message));
+  //     }
+  //   });
+  // }
 
   getId(divHtmlContent) {
     const $ = cheerio.load(divHtmlContent);
