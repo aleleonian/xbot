@@ -143,7 +143,7 @@ class XBot extends EventEmitter {
           success: true,
         };
         this.page = await browser.newPage();
-        this.page.setDefaultTimeout(10000);
+        this.page.setDefaultTimeout(20000);
         return responseObject;
       }
     }
@@ -159,7 +159,7 @@ class XBot extends EventEmitter {
       });
       return true;
     } catch (error) {
-      fireErrorLog("goto: Error! ", error);
+      fireErrorLog("goto: Error! " + error);
       return false;
     }
   }
@@ -246,7 +246,7 @@ class XBot extends EventEmitter {
   }
   async getLastTweetUrl() {
     let hasVisited = await this.goto(
-      "https://www.x.com" + "/" + this.botUsername
+      process.env.TARGET_SITE + this.botUsername
     );
     if (!hasVisited) return false;
 
@@ -269,9 +269,9 @@ class XBot extends EventEmitter {
 
     if (!this.isBusy) {
       this.isBusy = true;
-      let hasVisited = await this.goto("https://www.x.com");
-      if (!hasVisited) return this.respond(false, "Could not visit x.com");
-      fireInfoLog("visited x.com");
+      let hasVisited = await this.goto(process.env.TARGET_SITE);
+      if (!hasVisited) return this.respond(false, "Could not visit " + process.env.TARGET_SITE);
+      fireInfoLog("visited " + process.env.TARGET_SITE);
       let foundAndClicked = await this.findAndClick(
         process.env.TWITTER_NEW_TWEET_INPUT
       );
@@ -438,7 +438,7 @@ class XBot extends EventEmitter {
     }
   }
   async logOut() {
-    await this.goto("https://x.com/logout");
+    await this.goto(process.env.LOGOUT_URL);
     let foundAndClicked = await this.findAndClick(
       process.env.TWITTER_LOGOUT_BUTTON
     );
@@ -454,13 +454,13 @@ class XBot extends EventEmitter {
     this.isBusy = true;
 
     if (!this.isLoggedIn) {
-      let hasVisited = await this.goto("https://www.x.com/login");
+      let hasVisited = await this.goto(process.env.LOGIN_URL);
       if (!hasVisited) {
-        fireErrorLog("Can't visit https://www.x.com");
+        fireErrorLog("Can't visit " + process.env.LOGIN_URL);
         this.isBusy = false;
-        return this.respond(false, "Could not visit x.com");
+        return this.respond(false, "Could not visit " + process.env.LOGIN_URL);
       }
-      fireInfoLog("We're at https://www.x.com");
+      fireInfoLog("We're at " + process.env.LOGIN_URL);
       let foundAndClicked = await this.findAndClick(
         process.env.TWITTER_USERNAME_INPUT
       );
@@ -718,18 +718,6 @@ class XBot extends EventEmitter {
     clearInterval(this.queueTimer);
   }
 
-  // async processQueue() {
-  //   if (!this.isBusy) {
-  //     this.logger("xBot is not busy, processing queue...");
-  //     while (this.queue.length > 0) {
-  //       const nextItem = this.queue.pop();
-  //       this.logger(`Processing: ${JSON.stringify(nextItem)}`);
-  //       await this.tweet(nextItem.userId, nextItem.text);
-  //     }
-  //     this.stopQueueMonitor();
-  //   }
-  // }
-
   async processQueue() {
     if (!this.isBusy) {
       fireInfoLog("xBot is not busy, so processQueue will start completing pending tasks");
@@ -958,7 +946,7 @@ class XBot extends EventEmitter {
           if (videoPlayerDiv.length > 0) {
             newBookmark.hasLocalMedia = "video";
             const videoPageUrl =
-              "https://x.com" +
+              process.env.TARGET_SITE.substring(mystring.length - 1, 1) +
               $('[data-testid="User-Name"] a').eq(2).attr("href");
             fireDebugLog("Gotta download the video at: ",
               videoPageUrl);
