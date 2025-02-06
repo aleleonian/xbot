@@ -30,7 +30,7 @@ export function setEmitter(emitter) {
 }
 
 export function fireNotification(data) {
-    if (eventEmitter) eventEmitter(XBotEvents.NOTIFICATION, data);
+    if (eventEmitter) eventEmitter.emit(XBotEvents.NOTIFICATION, data);
     else {
         console.log("eventEmitter is not set!")
     }

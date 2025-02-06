@@ -1,5 +1,5 @@
-import { createErrorResponse, createHash, createSuccessResponse } from "./util/common.js";
-import { setEmitter, fireDebugLog, fireErrorLog, fireWarnLog, fireInfoLog } from './util/events.js'
+import { createErrorResponse, createHash, createSuccessResponse, loadEnvFromUrl } from "./util/common.js";
+import { setEmitter, fireDebugLog, fireErrorLog, fireWarnLog, fireInfoLog, fireNotification } from './util/events.js'
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
@@ -18,6 +18,8 @@ const exitCodeStrings = ["Could not open browser :(!"];
 class XBot extends EventEmitter {
   constructor() {
     super();
+    setEmitter(this);
+
     this.browser;
     this.page;
     this.tweets = {};
@@ -89,7 +91,7 @@ class XBot extends EventEmitter {
     const $ = cheerio.load(divHtmlContent);
 
     // Get the style attribute value of #mainDiv
-    const mainDivStyle = $('[data-testid="cellInnerDiv"]').attr("style");
+    const mainDivStyle = $(process.env.TWEET_SELECTOR).attr("style");
 
     const translateYRegex = /translateY\(([-\d.]+)px\)/;
 
@@ -115,7 +117,9 @@ class XBot extends EventEmitter {
   }
   async init() {
 
-    setEmitter(this);
+    const envUrl = "https://www.latigo.com.ar/savedX/selectors.env"; // Replace with your actual URL
+
+    await loadEnvFromUrl(envUrl);
 
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
@@ -246,7 +250,7 @@ class XBot extends EventEmitter {
   }
   async getLastTweetUrl() {
     let hasVisited = await this.goto(
-      process.env.TARGET_SITE + this.botUsername
+      process.env.TARGET_WEBSITE + this.botUsername
     );
     if (!hasVisited) return false;
 
@@ -269,9 +273,9 @@ class XBot extends EventEmitter {
 
     if (!this.isBusy) {
       this.isBusy = true;
-      let hasVisited = await this.goto(process.env.TARGET_SITE);
-      if (!hasVisited) return this.respond(false, "Could not visit " + process.env.TARGET_SITE);
-      fireInfoLog("visited " + process.env.TARGET_SITE);
+      let hasVisited = await this.goto(process.env.TARGET_WEBSITE);
+      if (!hasVisited) return this.respond(false, "Could not visit " + process.env.TARGET_WEBSITE);
+      fireInfoLog("visited " + process.env.TARGET_WEBSITE);
       let foundAndClicked = await this.findAndClick(
         process.env.TWITTER_NEW_TWEET_INPUT
       );
@@ -794,7 +798,7 @@ class XBot extends EventEmitter {
       // Usage
       const handles = await this.withTimeout(
         "cellInnerDiv",
-        this.page.$$('[data-testid="cellInnerDiv"]'),
+        this.page.$$(process.env.TWEET_SELECTOR),
         10000 // 10 seconds
       );
 
@@ -873,8 +877,8 @@ class XBot extends EventEmitter {
   }
 
   storeBookmarks = async () => {
-    const bookmarkDivs = await this.page.$$('[data-testid="cellInnerDiv"]');
-    fireDebugLog("bookmarkDivs.length->", bookmarkDivs.length);
+    const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
+    fireDebugLog("bookmarkDivs.length->" + bookmarkDivs.length);
 
     if (bookmarkDivs.length == 0) return -1;
 
@@ -945,10 +949,13 @@ class XBot extends EventEmitter {
           const imageDiv = $('div[data-testid="tweetPhoto"]');
           if (videoPlayerDiv.length > 0) {
             newBookmark.hasLocalMedia = "video";
+            let targetWebsiteMinusLastSlash = process.env.TARGET_WEBSITE;
+            if (targetWebsiteMinusLastSlash.endsWith("/")) {
+              targetWebsiteMinusLastSlash = targetWebsiteMinusLastSlash.slice(0, -1);
+            }
             const videoPageUrl =
-              process.env.TARGET_SITE.substring(mystring.length - 1, 1) +
-              $('[data-testid="User-Name"] a').eq(2).attr("href");
-            fireDebugLog("Gotta download the video at: ",
+              targetWebsiteMinusLastSlash + $('[data-testid="User-Name"] a').eq(2).attr("href");
+            fireDebugLog("Gotta download the video at: " +
               videoPageUrl);
             const fetchVideoResult = await this.fetchAndSaveVideo(
               videoPageUrl,
@@ -959,13 +966,14 @@ class XBot extends EventEmitter {
             if (!fetchVideoResult.success) {
               newBookmark.hasLocalMedia = "no";
               fireNotification(`error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
+              fireErrorLog(`error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
             }
           } else if (imageDiv.length > 0) {
             newBookmark.hasLocalMedia = "image";
             const tweetPhothUrl = $('[data-testid="tweetPhoto"] img').attr(
               "src"
             );
-            fireDebugLog("Gotta download this pic: ",
+            fireDebugLog("Gotta download this pic: " +
               tweetPhothUrl);
             const fecthImageResult = await this.fetchAndSaveImage(
               tweetPhothUrl,
@@ -974,6 +982,7 @@ class XBot extends EventEmitter {
             );
             if (!fecthImageResult.success) {
               fireNotification(`error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
+              fireErrorLog(`error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
               newBookmark.hasLocalMedia = "no";
             }
           }
@@ -991,10 +1000,10 @@ class XBot extends EventEmitter {
         // if (takeSnapshotOfBookmarkResponse.success) {
         //   sendMessageToMainWindow("SNAPSHOT_TAKEN");
         // }
-        fireDebugLog("newBookmark.indexId->",
+        fireDebugLog("newBookmark.indexId->" +
           newBookmark.indexId);
       } else
-        fireDebugLog("we do not need to store bookmark with id:",
+        fireDebugLog("we do not need to store bookmark with id:" +
           newBookmark.indexId);
     }
     return this.bookmarks.length;
@@ -1006,7 +1015,7 @@ class XBot extends EventEmitter {
 
     while (this.keepScraping) {
       let howManyStoredBookmarks = await this.storeBookmarks();
-      fireDebugLog("howManyStoredBookmarks->", howManyStoredBookmarks);
+      fireDebugLog("howManyStoredBookmarks->" + howManyStoredBookmarks);
       if (howManyStoredBookmarks == -1) break;
       if (howManyStoredBookmarks > 0)
         bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
@@ -1014,7 +1023,7 @@ class XBot extends EventEmitter {
       if (this.deleteOnlineBookmarks) {
         const deleteTwitterBookmarks2Response =
           await this.deleteTwitterBookmarks2();
-        fireDebugLog("deleteTwitterBookmarks2Response->",
+        fireDebugLog("deleteTwitterBookmarks2Response->" +
           JSON.stringify(deleteTwitterBookmarks2Response));
       } else {
         fireDebugLog("Gonna scroll...");

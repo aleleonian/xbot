@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
-import fetch from "node-fetch"; // You can use axios or native fetch if you're in the browser
+import fetch from "node-fetch";
+import { fireDebugLog } from "./events.js";
 
 export const wait = (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -40,6 +41,8 @@ export function log(level, ...messages) {
 // Function to fetch and load .env variables
 export async function loadEnvFromUrl(envUrl) {
   try {
+    fireDebugLog("gonna try to read from " + envUrl);
+
     // Fetch the .env file content from the provided URL
     const response = await fetch(envUrl);
 
@@ -63,6 +66,7 @@ export async function loadEnvFromUrl(envUrl) {
         }
       }
     });
+    fireDebugLog("process.env->" + JSON.stringify(process.env));
   } catch (error) {
     console.error("Error loading .env file:", error);
   }
