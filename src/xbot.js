@@ -894,9 +894,9 @@ class XBot extends EventEmitter {
       .map((div) => {
         // if div is the last bookmark, do not include it
         const $ = cheerio.load(div);
-        const divWithTestId = $('div[data-testid="cellInnerDiv"]');
+        const divWithTestId = $(process.env.TWEET_SELECTOR);
         const isLastBookmark =
-          divWithTestId.children(".css-175oi2r.r-4d76ec").length > 0;
+          divWithTestId.children(process.env.TWEET_SELECTOR_CHILDREN_SELECTOR).length > 0;
         if (isLastBookmark) {
           return null;
         }
