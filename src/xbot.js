@@ -741,7 +741,8 @@ class XBot extends EventEmitter {
   async takeSnapshotOfBookmark(indexId) {
     try {
       // Construct the selector dynamically using the indexId
-      const selector = `div[data-testid="cellInnerDiv"][style*="transform: translateY(${indexId}px)"]`;
+      const selector = process.env.TWEET_INDEX_SELECTOR.replace('INDEX_ID', indexId);
+      // const selector = `div[data-testid="cellInnerDiv"][style*="transform: translateY(${indexId}px)"]`;
 
       // Get the element handle of the target div
       const elementHandle = await this.page.$(selector);
@@ -776,7 +777,7 @@ class XBot extends EventEmitter {
     }
   }
 
-  async deleteTwitterBookmarks2() {
+  async deleteTwitterBookmarks() {
     const timeout = (ms) =>
       new Promise((resolve) =>
         setTimeout(
@@ -786,13 +787,21 @@ class XBot extends EventEmitter {
       );
 
     return Promise.race([
-      this.deleteTwitterBookmarks2Core(),
+      this.deleteTwitterBookmarksCore(),
       timeout(5 * 60 * 1000), // 5 minutes
     ]);
   }
 
-  async deleteTwitterBookmarks2Core() {
-    fireInfoLog(`deleteTwitterBookmarks2() started`);
+  async deleteTwitterBookmarksCore() {
+    fireInfoLog(`deleteTwitterBookmarksCore() started`);
+
+    // Expose fireDebugLog before evaluating
+    if (!(await this.page.evaluate(() => window.fireDebugLog))) {
+      await this.page.exposeFunction("fireDebugLog", (message) => {
+        fireDebugLog(message);
+      });
+    }
+
 
     try {
       // Usage
@@ -802,29 +811,28 @@ class XBot extends EventEmitter {
         10000 // 10 seconds
       );
 
-      fireInfoLog("cellInnerDiv handles.length->", handles.length);
+      fireDebugLog("cellInnerDiv handles.length->" + handles.length);
+      fireDebugLog("handles->" + handles.length);
 
       for (const handle of handles) {
         const buttonHandles = await this.withTimeout(
           "bookmarkButton",
           await handle.$$(
-            '[role="button"][aria-label][class="css-175oi2r r-1777fci r-bt1l66 r-bztko3 r-lrvibr r-1loqt21 r-1ny4l3l"]'
+            process.env.BOOKMARK_BUTTON_SELECTOR
           ),
           10000
         );
 
         if (buttonHandles.length > 0) {
           let matchingParentHandle = null;
-          let savedTweetHtml = "";
 
           for (const buttonHandle of buttonHandles) {
-            const hasMatchingChild = await buttonHandle.evaluate((parent) => {
+            const hasMatchingChild = await buttonHandle.evaluate((parent, selector) => {
               // Check if this is the div that holds the 'bookmarked' button
-              const path = parent.querySelector(
-                'path[d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5z"]'
-              );
+              const path = parent.querySelector(selector);
               return path !== null;
-            });
+            }, process.env.TWEET_BOOKMARK_BUTTON_PATH);
+
             if (hasMatchingChild) {
               matchingParentHandle = buttonHandle;
               break;
@@ -842,39 +850,14 @@ class XBot extends EventEmitter {
           fireDebugLog("Less than 1 button found in this cellInnerDiv");
         }
       }
-      fireDebugLog("deleteTwitterBookmarks2() finished");
+      fireDebugLog("deleteTwitterBookmarksCore() finished");
       return createSuccessResponse();
     } catch (error) {
+      fireDebugLog("deleteTwitterBookmarksCore() exception: " + error);
       return createErrorResponse(error);
     }
   }
 
-  async deleteTwitterBookmarks() {
-    await this.page.waitForSelector('[aria-label="Bookmarked"]');
-
-    //TODO: Bookmarked is in english, but it could be another language
-    // Get all buttons with the `aria-label="Bookmarked"`
-    let bookmarkButtons = await this.page.$$('[aria-label="Bookmarked"]');
-
-    // while (bookmarkButtons.length > 0) {
-    fireDebugLog(`Found ${bookmarkButtons.length} bookmark buttons.`);
-
-    // Function to delay execution for a specified time
-
-    // Loop through the buttons and click them with a 2-second delay
-    for (let i = 0; i < bookmarkButtons.length; i++) {
-      try {
-        await bookmarkButtons[i].click();
-        fireDebugLog(`Clicked button ${i + 1}`);
-      } catch (error) {
-        fireErrorLog(`Error clicking button ${i + 1}:`, error);
-      }
-
-      // Delay for 2 seconds
-      await this.wait(1000);
-    }
-    fireDebugLog("Finished clicking all bookmark buttons.");
-  }
 
   storeBookmarks = async () => {
     const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
@@ -911,7 +894,7 @@ class XBot extends EventEmitter {
     for (const newBookmark of processedBookmarks) {
       const $ = cheerio.load(newBookmark.htmlContent);
 
-      const newBookmarkTweetUrl = $('[data-testid="User-Name"] a')
+      const newBookmarkTweetUrl = $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR)
         .eq(2)
         .attr("href");
 
@@ -945,8 +928,8 @@ class XBot extends EventEmitter {
         this.bookmarks.push(newBookmark);
         if (this.downloadMedia) {
           fireDebugLog("We do have to download images!");
-          const videoPlayerDiv = $('div[data-testid="videoPlayer"]');
-          const imageDiv = $('div[data-testid="tweetPhoto"]');
+          const videoPlayerDiv = $(process.env.TWEET_VIDEO_PLAYER_DIV_SELECTOR);
+          const imageDiv = $(process.env.TWEET_PHOTO_DIV_SELECTOR);
           if (videoPlayerDiv.length > 0) {
             newBookmark.hasLocalMedia = "video";
             let targetWebsiteMinusLastSlash = process.env.TARGET_WEBSITE;
@@ -954,7 +937,7 @@ class XBot extends EventEmitter {
               targetWebsiteMinusLastSlash = targetWebsiteMinusLastSlash.slice(0, -1);
             }
             const videoPageUrl =
-              targetWebsiteMinusLastSlash + $('[data-testid="User-Name"] a').eq(2).attr("href");
+              targetWebsiteMinusLastSlash + $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
             fireDebugLog("Gotta download the video at: " +
               videoPageUrl);
             const fetchVideoResult = await this.fetchAndSaveVideo(
@@ -970,7 +953,7 @@ class XBot extends EventEmitter {
             }
           } else if (imageDiv.length > 0) {
             newBookmark.hasLocalMedia = "image";
-            const tweetPhothUrl = $('[data-testid="tweetPhoto"] img').attr(
+            const tweetPhothUrl = $(process.env.TWEET_PHOTO_IMG_SELECTOR).attr(
               "src"
             );
             fireDebugLog("Gotta download this pic: " +
@@ -1021,10 +1004,10 @@ class XBot extends EventEmitter {
         bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
       this.bookmarks = [];
       if (this.deleteOnlineBookmarks) {
-        const deleteTwitterBookmarks2Response =
-          await this.deleteTwitterBookmarks2();
-        fireDebugLog("deleteTwitterBookmarks2Response->" +
-          JSON.stringify(deleteTwitterBookmarks2Response));
+        const deleteTwitterBookmarksResponse =
+          await this.deleteTwitterBookmarks();
+        fireDebugLog("deleteTwitterBookmarksResponse->" +
+          JSON.stringify(deleteTwitterBookmarksResponse));
       } else {
         fireDebugLog("Gonna scroll...");
         await this.page.evaluate(() => {
