@@ -991,56 +991,93 @@ class XBot extends EventEmitter {
     }
     return this.bookmarks.length;
   };
+  // scrapeBookmarks = async () => {
+  //   this.keepScraping = true;
+  //   let bookmarksCopy = [];
+  //   let scrollPosition = 0;
+
+  //   while (this.keepScraping) {
+  //     let howManyStoredBookmarks = await this.storeBookmarks();
+  //     fireDebugLog("howManyStoredBookmarks->" + howManyStoredBookmarks);
+  //     if (howManyStoredBookmarks == -1) break;
+  //     if (howManyStoredBookmarks > 0)
+  //       bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
+  //     this.bookmarks = [];
+  //     if (this.deleteOnlineBookmarks) {
+  //       const deleteTwitterBookmarksResponse =
+  //         await this.deleteTwitterBookmarks();
+  //       fireDebugLog("deleteTwitterBookmarksResponse->" +
+  //         JSON.stringify(deleteTwitterBookmarksResponse));
+  //     } else {
+  //       fireDebugLog("Gonna scroll...");
+  //       await this.page.evaluate(() => {
+  //         window.scrollBy(0, window.innerHeight);
+  //       });
+  //       // Wait for a while after each scroll to give time for content loading
+  //       await this.wait(3000);
+  //       howManyStoredBookmarks = await this.storeBookmarks();
+  //       if (howManyStoredBookmarks == -1) break;
+  //       if (howManyStoredBookmarks > 0)
+  //         bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
+  //       this.bookmarks = [];
+  //       fireDebugLog("Bookmarks stored.");
+
+  //       // Get the scroll position
+  //       const newScrollPosition = await this.page.evaluate(() => {
+  //         return window.scrollY;
+  //       });
+
+  //       if (newScrollPosition > scrollPosition) {
+  //         fireDebugLog("Looping again.");
+  //         scrollPosition = newScrollPosition;
+  //       } else if (newScrollPosition <= scrollPosition) {
+  //         fireDebugLog("End of page reached. Stopping.");
+  //         break;
+  //       }
+  //     }
+  //   }
+
+  //   return bookmarksCopy;
+  // };
+
   scrapeBookmarks = async () => {
     this.keepScraping = true;
     let bookmarksCopy = [];
     let scrollPosition = 0;
 
-    while (this.keepScraping) {
-      let howManyStoredBookmarks = await this.storeBookmarks();
-      fireDebugLog("howManyStoredBookmarks->" + howManyStoredBookmarks);
-      if (howManyStoredBookmarks == -1) break;
-      if (howManyStoredBookmarks > 0)
-        bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
+    const processBookmarks = async () => {
+      let storedCount = await this.storeBookmarks();
+      fireDebugLog("Stored bookmarks count -> " + storedCount);
+      if (storedCount === -1) return false; // Stop condition
+
+      if (storedCount > 0) bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
       this.bookmarks = [];
+      return true; // Continue scraping
+    };
+
+    while (this.keepScraping) {
+      if (!(await processBookmarks())) break;
+
       if (this.deleteOnlineBookmarks) {
-        const deleteTwitterBookmarksResponse =
-          await this.deleteTwitterBookmarks();
-        fireDebugLog("deleteTwitterBookmarksResponse->" +
-          JSON.stringify(deleteTwitterBookmarksResponse));
+        const deleteTwitterBookmarksResponse = await this.deleteTwitterBookmarks();
+        fireDebugLog("deleteTwitterBookmarksResponse -> " + JSON.stringify(deleteTwitterBookmarksResponse));
       } else {
         fireDebugLog("Gonna scroll...");
-        await this.page.evaluate(() => {
-          window.scrollBy(0, window.innerHeight);
-        });
-        // Wait for a while after each scroll to give time for content loading
+        await this.page.evaluate(() => window.scrollBy(0, window.innerHeight));
         await this.wait(3000);
 
-        howManyStoredBookmarks = await this.storeBookmarks();
-        // if (howManyStoredBookmarks < 1) break;
-        if (howManyStoredBookmarks == -1) break;
-        if (howManyStoredBookmarks > 0)
-          bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
-        this.bookmarks = [];
-        fireDebugLog("Bookmarks stored.");
-
-        // Get the scroll position
-        const newScrollPosition = await this.page.evaluate(() => {
-          return window.scrollY;
-        });
-
-        if (newScrollPosition > scrollPosition) {
-          fireDebugLog("Looping again.");
-          scrollPosition = newScrollPosition;
-        } else if (newScrollPosition <= scrollPosition) {
+        const newScrollPosition = await this.page.evaluate(() => window.scrollY);
+        if (newScrollPosition <= scrollPosition) {
           fireDebugLog("End of page reached. Stopping.");
           break;
         }
+        scrollPosition = newScrollPosition;
       }
     }
 
     return bookmarksCopy;
   };
+
 
   isScrolledToBottom = async () => {
     const result = await this.page.evaluate(() => {
