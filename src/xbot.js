@@ -860,9 +860,11 @@ class XBot extends EventEmitter {
 
 
 
-  storeBookmarks = async () => {
+  storeBookmarks = async (bookmarksToBeReturned) => {
     const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
+
     fireDebugLog(`bookmarkDivs.length -> ${bookmarkDivs.length}`);
+    fireDebugLog(`bookmarkDivs -> ${JSON.stringify(bookmarkDivs)}`);
 
     if (bookmarkDivs.length === 0) return -1;
 
@@ -894,7 +896,9 @@ class XBot extends EventEmitter {
         .attr("href");
 
       // Check if bookmark already exists
-      const idExists = this.bookmarks.some(
+      //TODO: i think this check is failing or better said
+      //instead of looking inside this.bookmarks i should do it on the bookmarksToBeReturned
+      const idExists = bookmarksToBeReturned.some(
         (bookmark) => bookmark.indexId === newBookmark.indexId
       );
 
@@ -916,6 +920,8 @@ class XBot extends EventEmitter {
       }
     }
 
+    fireDebugLog(`this.bookmarks.length -> ${this.bookmarks.length}`);
+    fireDebugLog(`this.bookmarks -> ${JSON.stringify(this.bookmarks)}`);
     return this.bookmarks.length;
   };
 
@@ -968,15 +974,15 @@ class XBot extends EventEmitter {
 
   scrapeBookmarks = async () => {
     this.keepScraping = true;
-    let bookmarksCopy = [];
+    let bookmarksToBeReturned = [];
     let scrollPosition = 0;
 
     const processBookmarks = async () => {
-      let storedCount = await this.storeBookmarks();
+      let storedCount = await this.storeBookmarks(bookmarksToBeReturned);
       fireDebugLog("Stored bookmarks count -> " + storedCount);
       if (storedCount === -1) return false; // Stop condition
 
-      if (storedCount > 0) bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
+      if (storedCount > 0) bookmarksToBeReturned = bookmarksToBeReturned.concat(this.bookmarks);
       this.bookmarks = [];
       return true; // Continue scraping
     };
@@ -1000,7 +1006,7 @@ class XBot extends EventEmitter {
       }
     }
 
-    return bookmarksCopy;
+    return bookmarksToBeReturned;
   };
 
 
