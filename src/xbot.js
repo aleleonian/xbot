@@ -859,186 +859,112 @@ class XBot extends EventEmitter {
   }
 
 
+
   storeBookmarks = async () => {
     const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
-    fireDebugLog("bookmarkDivs.length->" + bookmarkDivs.length);
+    fireDebugLog(`bookmarkDivs.length -> ${bookmarkDivs.length}`);
 
-    if (bookmarkDivs.length == 0) return -1;
+    if (bookmarkDivs.length === 0) return -1;
 
-    const htmlContentDivs = [];
+    const htmlContentDivs = await Promise.all(
+      bookmarkDivs.map(async (divHandle) => {
+        return divHandle.evaluate((div) => div.outerHTML);
+      })
+    );
 
-    for (const divHandle of bookmarkDivs) {
-      // Get the HTML content of the div
-      const htmlContent = await divHandle.evaluate((div) => div.outerHTML);
-      htmlContentDivs.push(htmlContent);
-    }
-
+    // Process bookmarks
     let processedBookmarks = htmlContentDivs
       .map((div) => {
-        // if div is the last bookmark, do not include it
         const $ = cheerio.load(div);
         const divWithTestId = $(process.env.TWEET_SELECTOR);
         const isLastBookmark =
-          divWithTestId.children(process.env.TWEET_SELECTOR_CHILDREN_SELECTOR).length > 0;
-        if (isLastBookmark) {
-          return null;
-        }
+          divWithTestId.children(process.env.TWEET_SELECTOR_CHILDREN_SELECTOR)
+            .length > 0;
 
-        const divItem = {};
-        divItem.htmlContent = div;
-        divItem.indexId = this.getId(div);
-        return divItem;
+        return isLastBookmark
+          ? null
+          : { htmlContent: div, indexId: this.getId(div) };
       })
-      .filter((item) => item !== null);
+      .filter(Boolean); // Remove null values
 
     for (const newBookmark of processedBookmarks) {
       const $ = cheerio.load(newBookmark.htmlContent);
-
       const newBookmarkTweetUrl = $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR)
         .eq(2)
         .attr("href");
 
-      // this.emit(XBotEvents.CHECK_SAVED_TWEET_EXISTS, newBookmarkTweetUrl);
-
-      // this.logger("gonna wait for waitForNewReport()");
-
-      // const waitForNewReportResponse = await this.waitForNewReport();
-
-      // this.logger(
-      //   process.env.DEBUG,
-      //   "waitForNewReportResponse->",
-      //   JSON.stringify(waitForNewReportResponse)
-      // );
-
-      // if (waitForNewReportResponse.success) {
-      //   this.logger(
-      //     process.env.DEBUG,
-      //     waitForNewReportResponse.tweetUrl + " already exists, skipping!"
-      //   );
-      //   continue;
-      // }
-
-      // have we processed this bookmark already?
+      // Check if bookmark already exists
       const idExists = this.bookmarks.some(
         (bookmark) => bookmark.indexId === newBookmark.indexId
       );
+
       if (!idExists) {
-        fireDebugLog("We do have to store this bookmark");
+        fireDebugLog("Storing new bookmark");
         newBookmark.tweetUrlHash = createHash(newBookmarkTweetUrl);
         this.bookmarks.push(newBookmark);
-        if (this.downloadMedia) {
-          fireDebugLog("We do have to download images!");
-          const videoPlayerDiv = $(process.env.TWEET_VIDEO_PLAYER_DIV_SELECTOR);
-          const imageDiv = $(process.env.TWEET_PHOTO_DIV_SELECTOR);
-          if (videoPlayerDiv.length > 0) {
-            newBookmark.hasLocalMedia = "video";
-            let targetWebsiteMinusLastSlash = process.env.TARGET_WEBSITE;
-            if (targetWebsiteMinusLastSlash.endsWith("/")) {
-              targetWebsiteMinusLastSlash = targetWebsiteMinusLastSlash.slice(0, -1);
-            }
-            const videoPageUrl =
-              targetWebsiteMinusLastSlash + $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
-            fireDebugLog("Gotta download the video at: " +
-              videoPageUrl);
-            const fetchVideoResult = await this.fetchAndSaveVideo(
-              videoPageUrl,
-              process.env.MEDIA_FOLDER,
-              newBookmark.tweetUrlHash + ".mp4"
-            );
 
-            if (!fetchVideoResult.success) {
-              newBookmark.hasLocalMedia = "no";
-              fireNotification(`error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
-              fireErrorLog(`error--Trouble with fetchAndSaveVideo(): ${fetchVideoResult.errorMessage}`);
-            }
-          } else if (imageDiv.length > 0) {
-            newBookmark.hasLocalMedia = "image";
-            const tweetPhothUrl = $(process.env.TWEET_PHOTO_IMG_SELECTOR).attr(
-              "src"
-            );
-            fireDebugLog("Gotta download this pic: " +
-              tweetPhothUrl);
-            const fecthImageResult = await this.fetchAndSaveImage(
-              tweetPhothUrl,
-              process.env.MEDIA_FOLDER,
-              newBookmark.tweetUrlHash + ".jpg"
-            );
-            if (!fecthImageResult.success) {
-              fireNotification(`error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
-              fireErrorLog(`error--Trouble with fetchAndSaveImage(): ${fecthImageResult.errorMessage}`);
-              newBookmark.hasLocalMedia = "no";
-            }
-          }
+        // Download media if enabled
+        if (this.downloadMedia) {
+          await this.downloadMediaForBookmark($, newBookmark);
         } else {
-          fireDebugLog("We do NOT have to download images!");
+          fireDebugLog("Skipping media download");
         }
-        // TODO: on HOLD
-        // const takeSnapshotOfBookmarkResponse =
-        //   await this.takeSnapshotOfBookmark(newBookmark.indexId);
-        // this.logger(
-        //   "takeSnapshotOfBookmarkResponse->",
-        //   JSON.stringify(takeSnapshotOfBookmarkResponse)
-        // );
-        // not sure about this
-        // if (takeSnapshotOfBookmarkResponse.success) {
-        //   sendMessageToMainWindow("SNAPSHOT_TAKEN");
-        // }
-        fireDebugLog("newBookmark.indexId->" +
-          newBookmark.indexId);
-      } else
-        fireDebugLog("we do not need to store bookmark with id:" +
-          newBookmark.indexId);
+
+        fireDebugLog(`Stored bookmark with indexId -> ${newBookmark.indexId}`);
+      } else {
+        fireDebugLog(`Skipping duplicate bookmark with indexId -> ${newBookmark.indexId}`);
+      }
     }
+
     return this.bookmarks.length;
   };
-  // scrapeBookmarks = async () => {
-  //   this.keepScraping = true;
-  //   let bookmarksCopy = [];
-  //   let scrollPosition = 0;
 
-  //   while (this.keepScraping) {
-  //     let howManyStoredBookmarks = await this.storeBookmarks();
-  //     fireDebugLog("howManyStoredBookmarks->" + howManyStoredBookmarks);
-  //     if (howManyStoredBookmarks == -1) break;
-  //     if (howManyStoredBookmarks > 0)
-  //       bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
-  //     this.bookmarks = [];
-  //     if (this.deleteOnlineBookmarks) {
-  //       const deleteTwitterBookmarksResponse =
-  //         await this.deleteTwitterBookmarks();
-  //       fireDebugLog("deleteTwitterBookmarksResponse->" +
-  //         JSON.stringify(deleteTwitterBookmarksResponse));
-  //     } else {
-  //       fireDebugLog("Gonna scroll...");
-  //       await this.page.evaluate(() => {
-  //         window.scrollBy(0, window.innerHeight);
-  //       });
-  //       // Wait for a while after each scroll to give time for content loading
-  //       await this.wait(3000);
-  //       howManyStoredBookmarks = await this.storeBookmarks();
-  //       if (howManyStoredBookmarks == -1) break;
-  //       if (howManyStoredBookmarks > 0)
-  //         bookmarksCopy = bookmarksCopy.concat(this.bookmarks);
-  //       this.bookmarks = [];
-  //       fireDebugLog("Bookmarks stored.");
+  downloadMediaForBookmark = async ($, bookmark) => {
+    fireDebugLog("Media download initiated");
 
-  //       // Get the scroll position
-  //       const newScrollPosition = await this.page.evaluate(() => {
-  //         return window.scrollY;
-  //       });
+    const videoPlayerDiv = $(process.env.TWEET_VIDEO_PLAYER_DIV_SELECTOR);
+    const imageDiv = $(process.env.TWEET_PHOTO_DIV_SELECTOR);
 
-  //       if (newScrollPosition > scrollPosition) {
-  //         fireDebugLog("Looping again.");
-  //         scrollPosition = newScrollPosition;
-  //       } else if (newScrollPosition <= scrollPosition) {
-  //         fireDebugLog("End of page reached. Stopping.");
-  //         break;
-  //       }
-  //     }
-  //   }
+    // Normalize target website URL
+    let targetWebsite = process.env.TARGET_WEBSITE.replace(/\/$/, "");
 
-  //   return bookmarksCopy;
-  // };
+    if (videoPlayerDiv.length > 0) {
+      bookmark.hasLocalMedia = "video";
+      const videoPageUrl =
+        targetWebsite + $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
+
+      fireDebugLog(`Downloading video: ${videoPageUrl}`);
+      const fetchVideoResult = await this.fetchAndSaveVideo(
+        videoPageUrl,
+        process.env.MEDIA_FOLDER,
+        `${bookmark.tweetUrlHash}.mp4`
+      );
+
+      if (!fetchVideoResult.success) {
+        bookmark.hasLocalMedia = "no";
+        fireErrorLog(`Error in fetchAndSaveVideo: ${fetchVideoResult.errorMessage}`);
+        fireNotification(`error--${fetchVideoResult.errorMessage}`);
+      }
+    } else if (imageDiv.length > 0) {
+      bookmark.hasLocalMedia = "image";
+      const tweetPhotoUrl = $(process.env.TWEET_PHOTO_IMG_SELECTOR).attr("src");
+
+      fireDebugLog(`Downloading image: ${tweetPhotoUrl}`);
+      const fetchImageResult = await this.fetchAndSaveImage(
+        tweetPhotoUrl,
+        process.env.MEDIA_FOLDER,
+        `${bookmark.tweetUrlHash}.jpg`
+      );
+
+      if (!fetchImageResult.success) {
+        bookmark.hasLocalMedia = "no";
+        fireErrorLog(`Error in fetchAndSaveImage: ${fetchImageResult.errorMessage}`);
+        fireNotification(`error--${fetchImageResult.errorMessage}`);
+      }
+    } else {
+      fireDebugLog("No media found for this bookmark");
+    }
+  };
 
   scrapeBookmarks = async () => {
     this.keepScraping = true;
@@ -1057,7 +983,6 @@ class XBot extends EventEmitter {
 
     while (this.keepScraping) {
       if (!(await processBookmarks())) break;
-
       if (this.deleteOnlineBookmarks) {
         const deleteTwitterBookmarksResponse = await this.deleteTwitterBookmarks();
         fireDebugLog("deleteTwitterBookmarksResponse -> " + JSON.stringify(deleteTwitterBookmarksResponse));
