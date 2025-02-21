@@ -1,5 +1,17 @@
-import { createErrorResponse, createHash, createSuccessResponse, loadEnvFromUrl } from "./util/common.js";
-import { setEmitter, fireDebugLog, fireErrorLog, fireWarnLog, fireInfoLog, fireNotification } from './util/events.js'
+import {
+  createErrorResponse,
+  createHash,
+  createSuccessResponse,
+  loadEnvFromUrl,
+} from "./util/common.js";
+import {
+  setEmitter,
+  fireDebugLog,
+  fireErrorLog,
+  fireWarnLog,
+  fireInfoLog,
+  fireNotification,
+} from "./util/events.js";
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
@@ -61,7 +73,7 @@ class XBot extends EventEmitter {
           fireErrorLog(errorMessage);
           resolve(createErrorResponse(errorMessage));
         });
-    }).catch(error => {
+    }).catch((error) => {
       const errorMessage = `Error fetching the image: ${error.message}`;
       fireErrorLog(errorMessage);
       resolve(createErrorResponse(errorMessage));
@@ -87,7 +99,17 @@ class XBot extends EventEmitter {
     }
   }
 
-  getId(divHtmlContent) {
+  getTweetAuthor(divHtmlContent) {
+    const tweetPath = this.getTweetUrlPath(divHtmlContent);
+    return tweetPath.substring(1, tweetPath.indexOf("/", 1));
+  }
+
+  getTweetUrlPath(divHtmlContent) {
+    const $ = cheerio.load(divHtmlContent);
+    return $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
+  }
+
+  getTweetId(divHtmlContent) {
     const $ = cheerio.load(divHtmlContent);
 
     // Get the style attribute value of #mainDiv
@@ -103,9 +125,7 @@ class XBot extends EventEmitter {
     if (match && match.length > 1) {
       translateYValue = match[1];
     }
-    return translateYValue
-      ? translateYValue
-      : createHash(divHtmlContent);
+    return translateYValue;
   }
 
   setBusy(state) {
@@ -117,10 +137,14 @@ class XBot extends EventEmitter {
   }
   async init() {
 
+    process.env.MEDIA_FOLDER ||= "./"; // Ensures a default value is set
+
     const envUrl = "https://www.latigo.com.ar/savedX/selectors.env"; // Replace with your actual URL
 
-    await loadEnvFromUrl(envUrl);
-
+    const loadResult = await loadEnvFromUrl(envUrl);
+    if (!loadResult) {
+      return createErrorResponse("loadEnvFromUrl() failed");
+    }
     let pupConfig = {
       headless: process.env.XBOT_HEADLESS === "true",
       ignoreDefaultArgs: ["--enable-automation"],
@@ -150,12 +174,21 @@ class XBot extends EventEmitter {
         this.page.setDefaultTimeout(20000);
         return responseObject;
       }
-    }
-    catch (error) {
+    } catch (error) {
       if (this.browser) await this.browser.close();
       fireErrorLog("❌ Puppeteer failed to launch:", error);
+      return false;
     }
   }
+  async reloadPage() {
+    try {
+      await this.page.reload({ waitUntil: "networkidle0" });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   async goto(urlToVisit) {
     try {
       await this.page.goto(urlToVisit, {
@@ -274,7 +307,11 @@ class XBot extends EventEmitter {
     if (!this.isBusy) {
       this.isBusy = true;
       let hasVisited = await this.goto(process.env.TARGET_WEBSITE);
-      if (!hasVisited) return this.respond(false, "Could not visit " + process.env.TARGET_WEBSITE);
+      if (!hasVisited)
+        return this.respond(
+          false,
+          "Could not visit " + process.env.TARGET_WEBSITE
+        );
       fireInfoLog("visited " + process.env.TARGET_WEBSITE);
       let foundAndClicked = await this.findAndClick(
         process.env.TWITTER_NEW_TWEET_INPUT
@@ -335,7 +372,10 @@ class XBot extends EventEmitter {
         return false;
       }
     } catch (error) {
-      fireErrorLog("twitterSuspects() exception! -> Did NOT find SUSPICION_TEXT! : ", error);
+      fireErrorLog(
+        "twitterSuspects() exception! -> Did NOT find SUSPICION_TEXT! : ",
+        error
+      );
       return false;
     }
   }
@@ -354,8 +394,10 @@ class XBot extends EventEmitter {
         return false;
       }
     } catch (error) {
-      fireErrorLog("twitterRequiresCaptcha() exception! -> Did NOT find TWITTER_AUTHENTICATE_TEXT! ",
-        error);
+      fireErrorLog(
+        "twitterRequiresCaptcha() exception! -> Did NOT find TWITTER_AUTHENTICATE_TEXT! ",
+        error
+      );
       return false;
     }
   }
@@ -363,8 +405,10 @@ class XBot extends EventEmitter {
     try {
       return await this.findTextInPage(process.env.TWITTER_UNUSUAL_LOGIN_TEXT);
     } catch (error) {
-
-      fireErrorLog("unusualLoginDetected() exception! -> Did NOT find TWITTER_UNUSUAL_LOGIN_TEXT!", error);
+      fireErrorLog(
+        "unusualLoginDetected() exception! -> Did NOT find TWITTER_UNUSUAL_LOGIN_TEXT!",
+        error
+      );
       return false;
     }
   }
@@ -399,13 +443,15 @@ class XBot extends EventEmitter {
         return response;
       }
     } catch (error) {
-      fireInfoLog("twitterSuspects() exception! -> Did NOT find VERIFICATION_TEXT!",
-        error);
+      fireInfoLog(
+        "twitterSuspects() exception! -> Did NOT find VERIFICATION_TEXT!",
+        error
+      );
       return false;
     }
   }
   async closeBrowser() {
-    return await this.browser.close();
+    if (this.browser) await this.browser.close();
   }
   async lookForWrongLoginInfoDialog(textToLookFor) {
     try {
@@ -512,20 +558,22 @@ class XBot extends EventEmitter {
       );
 
       if (!foundAndClicked) {
-
         fireErrorLog("Can't find and click TWITTER_PASSWORD_INPUT");
 
         // let's look for this text We need to make sure that you’re a real person.
         if (await this.twitterRequiresCaptcha()) {
           fireInfoLog("Bro, you need to solve the puzzle!");
         } else if (await this.unusualLoginDetected()) {
-          fireWarnLog("Bro, X detected an unusual login attempt! Will try to calm the bitch down.");
+          fireWarnLog(
+            "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
+          );
           try {
             await this.findAndType(
               process.env.TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT,
               botEmail
             );
             //TODO what if findAndTypeResult is false?
+            //TODO: this one is not being found
             await this.findAndClick(
               process.env.TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
             );
@@ -556,7 +604,9 @@ class XBot extends EventEmitter {
           // this function should enter an indefinite loop that only breaks
           // when some external condition changes
           // that external condition would be changed by the clicking of that button
-          fireWarnLog("Bro we need you to do something about this situation, will give you 20 seconds.");
+          fireWarnLog(
+            "Bro we need you to do something about this situation, will give you 20 seconds."
+          );
           await this.wait(20000);
         } else {
           fireErrorLog("Bro, we're defeated by Twitter. Dang it.");
@@ -566,8 +616,7 @@ class XBot extends EventEmitter {
             "Can't find and click TWITTER_PASSWORD_INPUT"
           );
         }
-      } else
-        fireInfoLog("Found and clicked TWITTER_PASSWORD_INPUT");
+      } else fireInfoLog("Found and clicked TWITTER_PASSWORD_INPUT");
 
       foundAndTyped = await this.findAndType(
         process.env.TWITTER_PASSWORD_INPUT,
@@ -724,7 +773,9 @@ class XBot extends EventEmitter {
 
   async processQueue() {
     if (!this.isBusy) {
-      fireInfoLog("xBot is not busy, so processQueue will start completing pending tasks");
+      fireInfoLog(
+        "xBot is not busy, so processQueue will start completing pending tasks"
+      );
 
       while (this.queue.length > 0) {
         const nextItem = this.queue.pop();
@@ -738,10 +789,14 @@ class XBot extends EventEmitter {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async takeSnapshotOfBookmark(indexId) {
+  async takeSnapshotOfTweet(indexId) {
+
     try {
       // Construct the selector dynamically using the indexId
-      const selector = process.env.TWEET_INDEX_SELECTOR.replace('INDEX_ID', indexId);
+      const selector = process.env.TWEET_INDEX_SELECTOR.replace(
+        "INDEX_ID",
+        indexId
+      );
       // const selector = `div[data-testid="cellInnerDiv"][style*="transform: translateY(${indexId}px)"]`;
 
       // Get the element handle of the target div
@@ -751,7 +806,10 @@ class XBot extends EventEmitter {
         const boundingBox = await elementHandle.boundingBox();
 
         if (boundingBox) {
-          const screenshotPath = `${process.env.MEDIA_FOLDER}/bookmark-screenshot.png`;
+          const screenshotPath = `${
+            process.env.MEDIA_FOLDER
+          }/tweet-screenshot-${Date.now()}.png`;
+
           await this.page.screenshot({
             path: screenshotPath,
             clip: {
@@ -780,16 +838,21 @@ class XBot extends EventEmitter {
   async deleteTwitterBookmarks() {
     const timeout = (ms) =>
       new Promise((resolve) =>
-        setTimeout(
-          () => resolve(createErrorResponse("Function timed out")),
-          ms
-        )
+        setTimeout(() => resolve(createErrorResponse("Function timed out")), ms)
       );
 
     return Promise.race([
       this.deleteTwitterBookmarksCore(),
       timeout(5 * 60 * 1000), // 5 minutes
     ]);
+  }
+
+  async selectMultipleElements(name, selector, timeout) {
+    return await this.withTimeout(
+      name,
+      this.page.$$(selector),
+      timeout // 10 seconds
+    );
   }
 
   async deleteTwitterBookmarksCore() {
@@ -802,13 +865,18 @@ class XBot extends EventEmitter {
       });
     }
 
-
     try {
       // Usage
-      const handles = await this.withTimeout(
+      // const handles = await this.withTimeout(
+      //   "cellInnerDiv",
+      //   this.page.$$(process.env.TWEET_SELECTOR),
+      //   10000 // 10 seconds
+      // );
+
+      const handles = await this.selectMultipleElements(
         "cellInnerDiv",
-        this.page.$$(process.env.TWEET_SELECTOR),
-        10000 // 10 seconds
+        process.env.TWEET_SELECTOR,
+        10000
       );
 
       fireDebugLog("cellInnerDiv handles.length->" + handles.length);
@@ -817,9 +885,7 @@ class XBot extends EventEmitter {
       for (const handle of handles) {
         const buttonHandles = await this.withTimeout(
           "bookmarkButton",
-          await handle.$$(
-            process.env.BOOKMARK_BUTTON_SELECTOR
-          ),
+          await handle.$$(process.env.BOOKMARK_BUTTON_SELECTOR),
           10000
         );
 
@@ -827,11 +893,14 @@ class XBot extends EventEmitter {
           let matchingParentHandle = null;
 
           for (const buttonHandle of buttonHandles) {
-            const hasMatchingChild = await buttonHandle.evaluate((parent, selector) => {
-              // Check if this is the div that holds the 'bookmarked' button
-              const path = parent.querySelector(selector);
-              return path !== null;
-            }, process.env.TWEET_BOOKMARK_BUTTON_PATH);
+            const hasMatchingChild = await buttonHandle.evaluate(
+              (parent, selector) => {
+                // Check if this is the div that holds the 'bookmarked' button
+                const path = parent.querySelector(selector);
+                return path !== null;
+              },
+              process.env.TWEET_BOOKMARK_BUTTON_PATH
+            );
 
             if (hasMatchingChild) {
               matchingParentHandle = buttonHandle;
@@ -844,7 +913,6 @@ class XBot extends EventEmitter {
             await matchingParentHandle.click();
           } else {
             fireDebugLog("No matching parent handle found.");
-
           }
         } else {
           fireDebugLog("Less than 1 button found in this cellInnerDiv");
@@ -858,10 +926,14 @@ class XBot extends EventEmitter {
     }
   }
 
-
-
   storeBookmarks = async (bookmarksToBeReturned) => {
-    const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
+    // const bookmarkDivs = await this.page.$$(process.env.TWEET_SELECTOR);
+
+    const bookmarkDivs = await this.selectMultipleElements(
+      "cellInnerDiv",
+      process.env.TWEET_SELECTOR,
+      10000
+    );
 
     fireDebugLog(`bookmarkDivs.length -> ${bookmarkDivs.length}`);
     fireDebugLog(`bookmarkDivs -> ${JSON.stringify(bookmarkDivs)}`);
@@ -885,7 +957,7 @@ class XBot extends EventEmitter {
 
         return isLastBookmark
           ? null
-          : { htmlContent: div, indexId: this.getId(div) };
+          : { htmlContent: div, indexId: this.getTweetId(div) };
       })
       .filter(Boolean); // Remove null values
 
@@ -916,7 +988,9 @@ class XBot extends EventEmitter {
 
         fireDebugLog(`Stored bookmark with indexId -> ${newBookmark.indexId}`);
       } else {
-        fireDebugLog(`Skipping duplicate bookmark with indexId -> ${newBookmark.indexId}`);
+        fireDebugLog(
+          `Skipping duplicate bookmark with indexId -> ${newBookmark.indexId}`
+        );
       }
     }
 
@@ -937,7 +1011,8 @@ class XBot extends EventEmitter {
     if (videoPlayerDiv.length > 0) {
       bookmark.hasLocalMedia = "video";
       const videoPageUrl =
-        targetWebsite + $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
+        targetWebsite +
+        $(process.env.TWEET_AUTHOR_ANCHOR_SELECTOR).eq(2).attr("href");
 
       fireDebugLog(`Downloading video: ${videoPageUrl}`);
       const fetchVideoResult = await this.fetchAndSaveVideo(
@@ -948,7 +1023,9 @@ class XBot extends EventEmitter {
 
       if (!fetchVideoResult.success) {
         bookmark.hasLocalMedia = "no";
-        fireErrorLog(`Error in fetchAndSaveVideo: ${fetchVideoResult.errorMessage}`);
+        fireErrorLog(
+          `Error in fetchAndSaveVideo: ${fetchVideoResult.errorMessage}`
+        );
         fireNotification(`error--${fetchVideoResult.errorMessage}`);
       }
     } else if (imageDiv.length > 0) {
@@ -964,7 +1041,9 @@ class XBot extends EventEmitter {
 
       if (!fetchImageResult.success) {
         bookmark.hasLocalMedia = "no";
-        fireErrorLog(`Error in fetchAndSaveImage: ${fetchImageResult.errorMessage}`);
+        fireErrorLog(
+          `Error in fetchAndSaveImage: ${fetchImageResult.errorMessage}`
+        );
         fireNotification(`error--${fetchImageResult.errorMessage}`);
       }
     } else {
@@ -982,7 +1061,8 @@ class XBot extends EventEmitter {
       fireDebugLog("Stored bookmarks count -> " + storedCount);
       if (storedCount === -1) return false; // Stop condition
 
-      if (storedCount > 0) bookmarksToBeReturned = bookmarksToBeReturned.concat(this.bookmarks);
+      if (storedCount > 0)
+        bookmarksToBeReturned = bookmarksToBeReturned.concat(this.bookmarks);
       this.bookmarks = [];
       return true; // Continue scraping
     };
@@ -990,14 +1070,20 @@ class XBot extends EventEmitter {
     while (this.keepScraping) {
       if (!(await processBookmarks())) break;
       if (this.deleteOnlineBookmarks) {
-        const deleteTwitterBookmarksResponse = await this.deleteTwitterBookmarks();
-        fireDebugLog("deleteTwitterBookmarksResponse -> " + JSON.stringify(deleteTwitterBookmarksResponse));
+        const deleteTwitterBookmarksResponse =
+          await this.deleteTwitterBookmarks();
+        fireDebugLog(
+          "deleteTwitterBookmarksResponse -> " +
+            JSON.stringify(deleteTwitterBookmarksResponse)
+        );
       } else {
         fireDebugLog("Gonna scroll...");
         await this.page.evaluate(() => window.scrollBy(0, window.innerHeight));
         await this.wait(3000);
 
-        const newScrollPosition = await this.page.evaluate(() => window.scrollY);
+        const newScrollPosition = await this.page.evaluate(
+          () => window.scrollY
+        );
         if (newScrollPosition <= scrollPosition) {
           fireDebugLog("End of page reached. Stopping.");
           break;
@@ -1008,7 +1094,6 @@ class XBot extends EventEmitter {
 
     return bookmarksToBeReturned;
   };
-
 
   isScrolledToBottom = async () => {
     const result = await this.page.evaluate(() => {

@@ -67,8 +67,10 @@ export async function loadEnvFromUrl(envUrl) {
       }
     });
     fireDebugLog("process.env->" + JSON.stringify(process.env));
+    return true;
   } catch (error) {
     console.error("Error loading .env file:", error);
+    return false;
   }
 }
 
