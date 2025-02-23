@@ -12,6 +12,9 @@ import {
   fireInfoLog,
   fireNotification,
 } from "./util/events.js";
+
+import { XBotEvents } from "./util/constants.js";
+
 import { promisify } from "util";
 const execAsync = promisify(exec);
 import * as cheerio from "cheerio";
@@ -136,7 +139,6 @@ class XBot extends EventEmitter {
     return this.tweets[userId];
   }
   async init() {
-
     process.env.MEDIA_FOLDER ||= "./"; // Ensures a default value is set
 
     const envUrl = "https://www.latigo.com.ar/savedX/selectors.env"; // Replace with your actual URL
@@ -487,6 +489,15 @@ class XBot extends EventEmitter {
       return false;
     }
   }
+
+  async waitForUserConfirmation() {
+    return new Promise((resolve) => {
+      this.once(XBotEvents.CONTINUE, () => {
+        resolve();
+      });
+    });
+  }
+
   async logOut() {
     await this.goto(process.env.LOGOUT_URL);
     let foundAndClicked = await this.findAndClick(
@@ -568,15 +579,40 @@ class XBot extends EventEmitter {
             "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
           );
           try {
-            await this.findAndType(
+            const findAndTypeResult = await this.findAndType(
               process.env.TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT,
               botEmail
             );
+            if (findAndTypeResult)
+              fireDebugLog("TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT found!");
+            else fireDebugLog("TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT NOT found!");
             //TODO what if findAndTypeResult is false?
             //TODO: this one is not being found
-            await this.findAndClick(
+            const findAndClickResult = await this.findAndClick(
               process.env.TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
             );
+            if (findAndClickResult)
+              fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON found!");
+            else fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON NOT found!");
+
+            //TODO i think we have to search for this: 'Verify your identity by entering the email address associated with your X account.'
+            const unusualLoginEmailText = await this.findTextInPage(
+              process.env.TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT
+            );
+            if (unusualLoginEmailText) {
+              fireDebugLog("TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT found!");
+
+              //TODO i should find out the selector for the email input and do it automatically
+              this.emit(
+                XBotEvents.WAIT_FOR_USER_ACTION,
+                "X requires user intervention. Solve the captcha and press continue."
+              );
+              await this.waitForUserConfirmation();
+            } else {
+              fireDebugLog(
+                "TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT NOT found!"
+              );
+            }
             //TODO this is not being found despite apparently having to be the case
             //when my login data is bullshit
             //TODO implement a web server to live debug wtf is going on the
@@ -649,7 +685,20 @@ class XBot extends EventEmitter {
       }
 
       //TODO gotta check for In order to protect your account from suspicious activity
-
+      //In order to protect your account from suspicious activity, we've sent a confirmation code to ov*******@l*****.***.**. Enter it below to sign in.
+      const confirmationCodeRequiredText = await this.findTextInPage(
+        process.env.TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT
+      );
+      if (confirmationCodeRequiredText) {
+        fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
+        this.emit(
+          XBotEvents.WAIT_FOR_USER_ACTION,
+          "X requires user intervention. Provide the confirmation code that was sent to your email."
+        );
+        await this.waitForUserConfirmation();
+      } else {
+        fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT NOT found!");
+      }
       this.isLoggedIn = true;
       this.isBusy = false;
       return this.respond(true, "xBot is logged in!");
@@ -790,7 +839,6 @@ class XBot extends EventEmitter {
   }
 
   async takeSnapshotOfTweet(indexId) {
-
     try {
       // Construct the selector dynamically using the indexId
       const selector = process.env.TWEET_INDEX_SELECTOR.replace(
