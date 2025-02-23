@@ -574,6 +574,16 @@ class XBot extends EventEmitter {
         // let's look for this text We need to make sure that you’re a real person.
         if (await this.twitterRequiresCaptcha()) {
           fireInfoLog("Bro, you need to solve the puzzle!");
+          this.emit(
+            XBotEvents.WAIT_FOR_USER_ACTION,
+            "X requires user intervention. Solve the captcha and press continue."
+          );
+          await this.waitForUserConfirmation();
+        } else {
+          fireDebugLog(
+            "TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT NOT found!"
+          );
+        }
         } else if (await this.unusualLoginDetected()) {
           fireWarnLog(
             "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
