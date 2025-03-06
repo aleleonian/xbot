@@ -570,6 +570,11 @@ class XBot extends EventEmitter {
 
       if (!foundAndClicked) {
         fireErrorLog("Can't find and click TWITTER_PASSWORD_INPUT");
+        // this.isBusy = false;
+        // return this.respond(
+        //   false,
+        //   "Can't find and click TWITTER_PASSWORD_INPUT"
+        // );
 
         // let's look for this text We need to make sure that you’re a real person.
         if (await this.twitterRequiresCaptcha()) {
@@ -584,7 +589,8 @@ class XBot extends EventEmitter {
             "TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT NOT found!"
           );
         }
-        } else if (await this.unusualLoginDetected()) {
+
+        if (await this.unusualLoginDetected()) {
           fireWarnLog(
             "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
           );
@@ -640,7 +646,8 @@ class XBot extends EventEmitter {
           }
 
           // click TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
-        } else if (await this.arkoseChallengeDetected()) {
+        }
+        else if (await this.arkoseChallengeDetected()) {
           //TODO: instead of waiting 20 seconds, i should make a button appear on the main
           //screen that reads 'continue' and you solve the captcha and then click it and then
           //scraping resumes.
@@ -654,7 +661,8 @@ class XBot extends EventEmitter {
             "Bro we need you to do something about this situation, will give you 20 seconds."
           );
           await this.wait(20000);
-        } else {
+        }
+        else {
           fireErrorLog("Bro, we're defeated by Twitter. Dang it.");
           this.isBusy = false;
           return this.respond(
@@ -770,6 +778,7 @@ class XBot extends EventEmitter {
       return this.respond(false, "xBot is already logged in!");
     }
   }
+
   async inputEmail() {
     let foundAndClicked = await this.findAndClick(
       process.env.TWITTER_EMAIL_INPUT
@@ -864,9 +873,8 @@ class XBot extends EventEmitter {
         const boundingBox = await elementHandle.boundingBox();
 
         if (boundingBox) {
-          const screenshotPath = `${
-            process.env.MEDIA_FOLDER
-          }/tweet-screenshot-${Date.now()}.png`;
+          const screenshotPath = `${process.env.MEDIA_FOLDER
+            }/tweet-screenshot-${Date.now()}.png`;
 
           await this.page.screenshot({
             path: screenshotPath,
@@ -1132,7 +1140,7 @@ class XBot extends EventEmitter {
           await this.deleteTwitterBookmarks();
         fireDebugLog(
           "deleteTwitterBookmarksResponse -> " +
-            JSON.stringify(deleteTwitterBookmarksResponse)
+          JSON.stringify(deleteTwitterBookmarksResponse)
         );
       } else {
         fireDebugLog("Gonna scroll...");
