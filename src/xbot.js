@@ -570,11 +570,6 @@ class XBot extends EventEmitter {
 
       if (!foundAndClicked) {
         fireErrorLog("Can't find and click TWITTER_PASSWORD_INPUT");
-        // this.isBusy = false;
-        // return this.respond(
-        //   false,
-        //   "Can't find and click TWITTER_PASSWORD_INPUT"
-        // );
 
         // let's look for this text We need to make sure that you’re a real person.
         if (await this.twitterRequiresCaptcha()) {
@@ -617,7 +612,6 @@ class XBot extends EventEmitter {
             );
             if (unusualLoginEmailText) {
               fireDebugLog("TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT found!");
-
               //TODO i should find out the selector for the email input and do it automatically
               this.emit(
                 XBotEvents.WAIT_FOR_USER_ACTION,
@@ -648,19 +642,12 @@ class XBot extends EventEmitter {
           // click TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
         }
         else if (await this.arkoseChallengeDetected()) {
-          //TODO: instead of waiting 20 seconds, i should make a button appear on the main
-          //screen that reads 'continue' and you solve the captcha and then click it and then
-          //scraping resumes.
-
-          // a button should show up in the main screen
-
-          // this function should enter an indefinite loop that only breaks
-          // when some external condition changes
-          // that external condition would be changed by the clicking of that button
-          fireWarnLog(
-            "Bro we need you to do something about this situation, will give you 20 seconds."
+          fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
+          this.emit(
+            XBotEvents.WAIT_FOR_USER_ACTION,
+            "X requires user intervention due to the arkose challenge. Provide the confirmation code that was sent to your email."
           );
-          await this.wait(20000);
+          await this.waitForUserConfirmation();
         }
         else {
           fireErrorLog("Bro, we're defeated by Twitter. Dang it.");
