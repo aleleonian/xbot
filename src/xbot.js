@@ -574,10 +574,7 @@ class XBot extends EventEmitter {
         // let's look for this text We need to make sure that you’re a real person.
         if (await this.twitterRequiresCaptcha()) {
           fireInfoLog("Bro, you need to solve the puzzle!");
-          this.emit(
-            XBotEvents.WAIT_FOR_USER_ACTION,
-            "X requires user intervention. Solve the captcha and press continue."
-          );
+          this.emitAWaitForActionEvent("Solve the captcha and press continue");
           await this.waitForUserConfirmation();
         } else {
           fireDebugLog(
@@ -613,10 +610,7 @@ class XBot extends EventEmitter {
             if (unusualLoginEmailText) {
               fireDebugLog("TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT found!");
               //TODO i should find out the selector for the email input and do it automatically
-              this.emit(
-                XBotEvents.WAIT_FOR_USER_ACTION,
-                "X requires user intervention. Solve the captcha and press continue."
-              );
+              this.emitAWaitForActionEvent("Solve the captcha and press continue.")
               await this.waitForUserConfirmation();
             } else {
               fireDebugLog(
@@ -643,10 +637,7 @@ class XBot extends EventEmitter {
         }
         else if (await this.arkoseChallengeDetected()) {
           fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
-          this.emit(
-            XBotEvents.WAIT_FOR_USER_ACTION,
-            "X requires user intervention due to the arkose challenge. Provide the confirmation code that was sent to your email."
-          );
+          this.emitAWaitForActionEvent("Arkose challenge detected!");
           await this.waitForUserConfirmation();
         }
         else {
@@ -696,11 +687,8 @@ class XBot extends EventEmitter {
       );
       if (confirmationCodeRequiredText) {
         fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
-        this.emit(
-          XBotEvents.WAIT_FOR_USER_ACTION,
-          "X requires user intervention. Provide the confirmation code that was sent to your email."
-        );
-        await this.waitForUserConfirmation();
+        this.emitAWaitForActionEvent("Provide the confirmation code that was sent to your email.");
+        await this.waitForUserConfirmation("Provide the confirmation code that was sent to your email.");
       } else {
         fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT NOT found!");
       }
@@ -1163,6 +1151,13 @@ class XBot extends EventEmitter {
       setTimeout(() => reject(new Error(errorMessage)), ms)
     );
     return Promise.race([promise, timeout]);
+  }
+
+  emitAWaitForActionEvent(message) {
+    this.emit(
+      XBotEvents.WAIT_FOR_USER_ACTION,
+      `X requires user intervention: ${message}`
+    );
   }
 }
 export default XBot;
