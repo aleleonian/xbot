@@ -151,7 +151,9 @@ class XBot extends EventEmitter {
       headless: process.env.XBOT_HEADLESS === "true",
       ignoreDefaultArgs: ["--enable-automation"],
       args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"],
+      userDataDir: path.resolve("./chrome_data"), // Persist login session
     };
+
 
     if (process.env.EXECUTABLE_PATH) {
       pupConfig.executablePath = process.env.EXECUTABLE_PATH;
@@ -173,6 +175,9 @@ class XBot extends EventEmitter {
           success: true,
         };
         this.page = await browser.newPage();
+        this.page.on("console", (msg) => fireInfoLog("PAGE LOG:" + msg.text()));
+        this.page.on("error", (err) => fireErrorLog("PAGE ERROR:" + err));
+
         this.page.setDefaultTimeout(20000);
         return responseObject;
       }
@@ -521,97 +526,104 @@ class XBot extends EventEmitter {
         this.isBusy = false;
         return this.respond(false, "Could not visit " + process.env.LOGIN_URL);
       }
-      fireInfoLog("We're at " + process.env.LOGIN_URL);
-      let foundAndClicked = await this.findAndClick(
-        process.env.TWITTER_USERNAME_INPUT
-      );
-      if (!foundAndClicked) {
-        fireErrorLog("Can't find TWITTER_USERNAME_INPUT");
+      //NOW WE've got to check whether we are at the home or the login page.
+      //if we're at the home, that's because of a saved session in chrome_data
+      //TODO: why does it work in papparazzi but it does not work in savedX?
+      await this.wait(2000);
+      const currentUrl = this.getCurrentBotUrl();
+      fireInfoLog("We're at " + currentUrl);
+      if (currentUrl === "https://x.com/home") {
+        this.isLoggedIn = true;
         this.isBusy = false;
-        return this.respond(false, "Can't find TWITTER_USERNAME_INPUT");
+        return this.respond(true, "xBot is already logged in!");
       }
-      fireInfoLog("Found and clicked TWITTER_USERNAME_INPUT");
 
-      let foundAndTyped = await this.findAndType(
-        process.env.TWITTER_USERNAME_INPUT,
-        botUsername
-      );
-      if (!foundAndTyped) {
-        fireErrorLog("Can't find and type TWITTER_USERNAME_INPUT");
-        this.isBusy = false;
-        return this.respond(
-          false,
-          "Can't find and type TWITTER_USERNAME_INPUT"
+      //we'll now try to log in and if ANY difficulty arises, we'll throw an error and
+      //let the user solve it.
+
+      try {
+        let foundAndClicked = await this.findAndClick(
+          process.env.TWITTER_USERNAME_INPUT
         );
-      }
-      fireInfoLog("Found and typed TWITTER_USERNAME_INPUT");
-
-      foundAndClicked = await this.findAndClick(
-        process.env.TWITTER_USERNAME_SUBMIT_BUTTON
-      );
-      if (!foundAndClicked) {
-        fireErrorLog("Can't find and click TWITTER_USERNAME_SUBMIT_BUTTON");
-        this.isBusy = false;
-        return this.respond(
-          false,
-          "Can't find and click TWITTER_USERNAME_SUBMIT_BUTTON"
+        if (!foundAndClicked) {
+          fireDebugLog('TWITTER_USERNAME_INPUT not found!');
+          throw new Error('Complete login process, we could not find TWITTER_USERNAME_INPUT');
+        }
+        fireInfoLog("Found and clicked TWITTER_USERNAME_INPUT");
+        let foundAndTyped = await this.findAndType(
+          process.env.TWITTER_USERNAME_INPUT,
+          botUsername
         );
-      }
-      fireInfoLog("Found and clicked TWITTER_USERNAME_SUBMIT_BUTTON");
-      if (
-        await this.lookForWrongLoginInfoDialog("we could not find your account")
-      ) {
-        return this.respond(false, "Bro, your username is fucked up.");
-      }
+        if (!foundAndTyped) {
+          fireErrorLog("Can't find and type TWITTER_USERNAME_INPUT");
+          throw new Error('Complete login process, we could not find TWITTER_USERNAME_INPUT');
+        }
+        fireInfoLog("Found and typed TWITTER_USERNAME_INPUT");
 
-      foundAndClicked = await this.findAndClick(
-        process.env.TWITTER_PASSWORD_INPUT
-      );
+        foundAndClicked = await this.findAndClick(
+          process.env.TWITTER_USERNAME_SUBMIT_BUTTON
+        );
+        if (!foundAndClicked) {
+          fireErrorLog("Can't find and type TWITTER_USERNAME_SUBMIT_BUTTON");
+          throw new Error('Complete login process, we could not find TWITTER_USERNAME_SUBMIT_BUTTON');
+        }
+        fireInfoLog("Found and clicked TWITTER_USERNAME_SUBMIT_BUTTON");
 
-      if (!foundAndClicked) {
-        fireErrorLog("Can't find and click TWITTER_PASSWORD_INPUT");
-
-        // let's look for this text We need to make sure that you’re a real person.
-        if (await this.twitterRequiresCaptcha()) {
-          fireInfoLog("Bro, you need to solve the puzzle!");
-          this.emitAWaitForActionEvent("Solve the captcha and press continue");
-          await this.waitForUserConfirmation();
-        } else {
-          fireDebugLog(
-            "TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT NOT found!"
-          );
+        //Are we using a bad username?
+        if (await this.lookForWrongLoginInfoDialog("we could not find your account")) {
+          return this.respond(false, "Bro, your username is fucked up.");
         }
 
-        if (await this.unusualLoginDetected()) {
-          fireWarnLog(
-            "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
-          );
-          try {
+        foundAndClicked = await this.findAndClick(
+          process.env.TWITTER_PASSWORD_INPUT
+        );
+
+        if (!foundAndClicked) {
+          fireErrorLog("Can't find and click TWITTER_PASSWORD_INPUT");
+
+          // let's look for this text We need to make sure that you’re a real person.
+          if (await this.twitterRequiresCaptcha()) {
+            throw new Error('Complete the captcha please.');
+          }
+
+          if (await this.unusualLoginDetected()) {
+            fireWarnLog(
+              "Bro, X detected an unusual login attempt! Will try to calm the bitch down."
+            );
             const findAndTypeResult = await this.findAndType(
               process.env.TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT,
               botEmail
             );
-            if (findAndTypeResult)
+            if (findAndTypeResult) {
               fireDebugLog("TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT found!");
-            else fireDebugLog("TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT NOT found!");
-            //TODO what if findAndTypeResult is false?
-            //TODO: this one is not being found
-            const findAndClickResult = await this.findAndClick(
-              process.env.TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
-            );
-            if (findAndClickResult)
-              fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON found!");
-            else fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON NOT found!");
-
+              //TODO what if findAndTypeResult is false?
+              //TODO: this one is not being found
+              //TODO: fire a wait for user input loop
+              const findAndClickResult = await this.findAndClick(
+                process.env.TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
+              );
+              if (findAndClickResult)
+                fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON found!");
+              else {
+                fireDebugLog("TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON NOT found!");
+                this.emitAWaitForActionEvent('cant find TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON after unusualLoginDetected()')
+                await this.waitForUserConfirmation();
+                this.isLoggedIn = true;
+                this.isBusy = false;
+                return this.respond(true, "xBot is logged in!");
+              }
+            }
+            else {
+              fireDebugLog("TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT NOT found!");
+              throw new Error("Complete login, we could not find TWITTER_UNUSUAL_LOGIN_EMAIL_INPUT");
+            }
             //TODO i think we have to search for this: 'Verify your identity by entering the email address associated with your X account.'
             const unusualLoginEmailText = await this.findTextInPage(
               process.env.TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT
             );
             if (unusualLoginEmailText) {
               fireDebugLog("TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT found!");
-              //TODO i should find out the selector for the email input and do it automatically
-              this.emitAWaitForActionEvent("Solve the captcha and press continue.")
-              await this.waitForUserConfirmation();
+              throw new Error("Complete login, we found TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT");
             } else {
               fireDebugLog(
                 "TWITTER_UNUSUAL_LOGIN_VERIFY_EMAIL_TEXT NOT found!"
@@ -624,129 +636,66 @@ class XBot extends EventEmitter {
             if (await this.lookForWrongLoginInfoDialog("please try again")) {
               return this.respond(false, "Bro, your password is messed up.");
             }
-          } catch (error) {
-            fireErrorLog("logIntoX() error: ", error);
-            this.isBusy = false;
-            return this.respond(
-              false,
-              "Could not go past unusual login attempt!"
-            );
           }
+          else if (await this.arkoseChallengeDetected()) {
+            fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
+            throw new Error("Arkose challenge detected! Please solve it to continue.");
+          }
+          else {
+            fireErrorLog("Bro, we're defeated by Twitter. Dang it.");
+            throw new Error("Please finish the login process to continue.");
+          }
+        } else fireInfoLog("Found and clicked TWITTER_PASSWORD_INPUT");
 
-          // click TWITTER_UNUSUAL_LOGIN_SUBMIT_BUTTON
+        foundAndTyped = await this.findAndType(
+          process.env.TWITTER_PASSWORD_INPUT,
+          botPassword
+        );
+        if (!foundAndTyped) {
+          fireErrorLog("Can't find and type TWITTER_PASSWORD_INPUT");
+          throw new Error("Complete the login process, please. We can't find and type TWITTER_PASSWORD_INPUT");
         }
-        else if (await this.arkoseChallengeDetected()) {
-          fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
-          this.emitAWaitForActionEvent("Arkose challenge detected!");
-          await this.waitForUserConfirmation();
+        fireDebugLog("Found and typed TWITTER_PASSWORD_INPUT");
+        await this.page.keyboard.press("Enter");
+        await this.wait(3000);
+
+        if (await this.lookForWrongLoginInfoDialog("wrong password")) {
+          return this.respond(false, "Bro, your password is messed up.");
         }
-        else {
-          fireErrorLog("Bro, we're defeated by Twitter. Dang it.");
-          this.isBusy = false;
+
+        const blockedAttempt = await this.findTextInPage(
+          "We blocked an attempt to access your account because"
+        );
+        if (blockedAttempt) {
           return this.respond(
             false,
-            "Can't find and click TWITTER_PASSWORD_INPUT"
+            "We're temporarily blocked for some reason."
           );
         }
-      } else fireInfoLog("Found and clicked TWITTER_PASSWORD_INPUT");
 
-      foundAndTyped = await this.findAndType(
-        process.env.TWITTER_PASSWORD_INPUT,
-        botPassword
-      );
-      if (!foundAndTyped) {
-        fireErrorLog("Can't find and type TWITTER_PASSWORD_INPUT");
+        const confirmationCodeRequiredText = await this.findTextInPage(
+          process.env.TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT
+        );
+        if (confirmationCodeRequiredText) {
+          fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
+          throw new Error("Please input the code X sent to your email.");
+        } else {
+          fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT NOT found!");
+        }
+        this.isLoggedIn = true;
         this.isBusy = false;
-        return this.respond(
-          false,
-          "Can't find and type TWITTER_PASSWORD_INPUT"
-        );
+        return this.respond(true, "xBot is logged in!");
       }
-      fireDebugLog("Found and typed TWITTER_PASSWORD_INPUT");
-      await this.page.keyboard.press("Enter");
-      await this.wait(3000);
-
-      if (await this.lookForWrongLoginInfoDialog("wrong password")) {
-        return this.respond(false, "Bro, your password is messed up.");
+      catch (error) {
+        fireDebugLog("Exception in logIntoX():" + error);
+        this.emitAWaitForActionEvent(error);
+        await this.waitForUserConfirmation();
+        this.isLoggedIn = true;
+        this.isBusy = false;
+        return this.respond(true, "xBot is logged in!");
       }
 
-      const blockedAttempt = await this.findTextInPage(
-        "We blocked an attempt to access your account because"
-      );
-      if (blockedAttempt) {
-        return this.respond(
-          false,
-          "We're temporarily blocked for some reason."
-        );
-      }
 
-      //TODO gotta check for In order to protect your account from suspicious activity
-      //In order to protect your account from suspicious activity, we've sent a confirmation code to ov*******@l*****.***.**. Enter it below to sign in.
-      const confirmationCodeRequiredText = await this.findTextInPage(
-        process.env.TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT
-      );
-      if (confirmationCodeRequiredText) {
-        fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT found!");
-        this.emitAWaitForActionEvent("Provide the confirmation code that was sent to your email.");
-        await this.waitForUserConfirmation("Provide the confirmation code that was sent to your email.");
-      } else {
-        fireDebugLog("TWITTER_CONFIRMATION_CODE_REQUIRED_TEXT NOT found!");
-      }
-      this.isLoggedIn = true;
-      this.isBusy = false;
-      return this.respond(true, "xBot is logged in!");
-
-      // TODO: i think this is outdated
-
-      //HERE I GOTTA MAKE SURE I PROPERLY LOGGED IN
-      // check for Suspicious login prevented
-      // const found = await this.findElement(process.env.TWITTER_PASSWORD_INPUT, 5000);
-      // if (found) {
-      //     this.logger(process.env.DEBUG,"Found TWITTER_PASSWORD_INPUT when i should not, wrong login data assumed.");
-      //     this.isBusy = false;
-      //     return this.respond(false, "Wrong login information.");
-      // }
-
-      //HERE I GOTTA MAKE SURE Twitter is not suspicious and temporarily blocked me
-
-      // this.logger(process.env.DEBUG,"Twitter Bot has logged in, we now will try to detect suspicion.");
-
-      // let confirmedSuspicion = await this.twitterSuspects();
-
-      // if (confirmedSuspicion) {
-      //     this.logger(process.env.DEBUG,"Twitter suspects, will try to convince them.");
-      //     let emailWasInput = await this.inputEmail();
-      //     if (emailWasInput) {
-      //         this.logger(process.env.DEBUG,"We succeeded convincing twitter. We're in.");
-      //         this.isBusy = false;
-      //         return this.respond(true, "xBot is logged in, we convinced Elon!");
-      //     }
-      //     else {
-      //         this.logger(process.env.DEBUG,"We did not convince Elon :(");
-      //         this.isBusy = false;
-      //         return this.respond(false, "xBot is not logged in :(");
-      //     }
-      // }
-      // else {
-      //     this.logger(process.env.DEBUG,"We will now try to see if Twitter wants verification from us.")
-      //     let confirmedVerification = await this.twitterWantsVerification();
-      //     if (confirmedVerification.success) {
-      //         this.logger(process.env.DEBUG,"Twitter wants verification from us!")
-      //         // now we must check the code that was sent to us
-      //         // (or read the email automatically)
-      //         // and send it to the browser.
-      //         // The thing is i don't know how to locate that input field yet.
-      //         this.isBusy = false;
-      //         return this.respond(false, "Bot did NOT log in / Twitter wants verification code.")
-      //         // res.download(filePath);
-      //     }
-      //     else {
-      //         this.logger(process.env.DEBUG,"Apparently Twitter does not suspect, so we're logged in!");
-      //         this.isLoggedIn = true;
-      //         this.isBusy = false;
-      //         return this.respond(true, "xBot is logged in!")
-      //     }
-      // }
     } else {
       fireInfoLog("xBot is already logged in!");
       this.isBusy = false;
@@ -1156,7 +1105,7 @@ class XBot extends EventEmitter {
   emitAWaitForActionEvent(message) {
     this.emit(
       XBotEvents.WAIT_FOR_USER_ACTION,
-      `X requires user intervention: ${message}`
+      `X requires your intervention to continue: ${message}`
     );
   }
 }
