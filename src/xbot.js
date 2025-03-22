@@ -141,7 +141,7 @@ class XBot extends EventEmitter {
   async init() {
     process.env.MEDIA_FOLDER ||= "./"; // Ensures a default value is set
 
-    const envUrl = "https://www.latigo.com.ar/savedX/selectors.env"; // Replace with your actual URL
+    const envUrl = "https://www.latigo.com.ar/savedX/selectors.env";
 
     const loadResult = await loadEnvFromUrl(envUrl);
     if (!loadResult) {
@@ -175,10 +175,9 @@ class XBot extends EventEmitter {
           success: true,
         };
         this.page = await browser.newPage();
-        this.page.on("console", (msg) => fireInfoLog("PAGE LOG:" + msg.text()));
-        this.page.on("error", (err) => fireErrorLog("PAGE ERROR:" + err));
-
-        this.page.setDefaultTimeout(20000);
+        this.page.on("console", (msg) => fireInfoLog("Puppeteer page log:" + msg.text()));
+        this.page.on("error", (err) => fireErrorLog("Puppeteer page error:" + err));
+        this.page.setDefaultTimeout(10000);
         return responseObject;
       }
     } catch (error) {
@@ -209,7 +208,7 @@ class XBot extends EventEmitter {
   }
   async takePic(filePath) {
     if (!filePath) {
-      filePath = path.resolve(__dirname, "../public/images/xBotSnap.jpg");
+      filePath = path.resolve(__dirname, `../public/images/xBotSnap-${Date.now()}.jpg`);
     }
     try {
       await this.page.screenshot({ path: filePath });
@@ -570,7 +569,7 @@ class XBot extends EventEmitter {
       fireInfoLog("Found and clicked TWITTER_USERNAME_SUBMIT_BUTTON");
 
       //Are we using a bad username?
-      if (await this.lookForWrongLoginInfoDialog("we could not find your account")) {
+      if (await this.lookForWrongLoginInfoDialog(process.env.STRING_ACCOUNT_NOT_FOUND)) {
         return this.respond(false, "Bro, your username is fucked up.");
       }
 
@@ -633,7 +632,7 @@ class XBot extends EventEmitter {
           //when my login data is bullshit
           //TODO implement a web server to live debug wtf is going on the
           //remote chrome
-          if (await this.lookForWrongLoginInfoDialog("please try again")) {
+          if (await this.lookForWrongLoginInfoDialog(process.env.STRING_PLEASE_TRY_AGAIN)) {
             return this.respond(false, "Bro, your password is messed up.");
           }
         }
@@ -659,7 +658,7 @@ class XBot extends EventEmitter {
       await this.page.keyboard.press("Enter");
       await this.wait(3000);
 
-      if (await this.lookForWrongLoginInfoDialog("wrong password")) {
+      if (await this.lookForWrongLoginInfoDialog(process.env.STRING_WRONG_PASSWORD)) {
         return this.respond(false, "Bro, your password is messed up.");
       }
 
