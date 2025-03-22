@@ -3,6 +3,7 @@ import {
   createHash,
   createSuccessResponse,
   loadEnvFromUrl,
+  deleteFolder
 } from "./util/common.js";
 import {
   setEmitter,
@@ -138,7 +139,12 @@ class XBot extends EventEmitter {
   getTweet(userId) {
     return this.tweets[userId];
   }
-  async init() {
+  async init(persistLogin = true, needToDeleteChromeDataFolder = false) {
+
+    const chromeDataFolder = path.resolve("./chrome_data");
+
+    if (needToDeleteChromeDataFolder) await deleteFolder(chromeDataFolder);
+
     process.env.MEDIA_FOLDER ||= "./"; // Ensures a default value is set
 
     const envUrl = "https://www.latigo.com.ar/savedX/selectors.env";
@@ -151,9 +157,9 @@ class XBot extends EventEmitter {
       headless: process.env.XBOT_HEADLESS === "true",
       ignoreDefaultArgs: ["--enable-automation"],
       args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"],
-      userDataDir: path.resolve("./chrome_data"), // Persist login session
     };
 
+    if (persistLogin) pupConfig.userDataDir = chromeDataFolder;
 
     if (process.env.EXECUTABLE_PATH) {
       pupConfig.executablePath = process.env.EXECUTABLE_PATH;

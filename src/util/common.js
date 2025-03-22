@@ -1,6 +1,17 @@
 import * as crypto from "crypto";
 import fetch from "node-fetch";
-import { fireDebugLog } from "./events.js";
+import { fireDebugLog, fireErrorLog } from "./events.js";
+import * as fs from 'fs/promises';
+
+export async function deleteFolder(folderPath) {
+  try {
+    await fs.rm(folderPath, { recursive: true, force: true });
+    console.log('Folder removed successfully.');
+  } catch (err) {
+    fireErrorLog("deleteFolder() error: " + err);
+  }
+}
+
 
 export const wait = (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
