@@ -4,7 +4,7 @@ import {
   createSuccessResponse,
   loadEnvFromUrl,
   deleteFolder
-} from "./util/common.js";
+} from "./util/common";
 import {
   setEmitter,
   fireDebugLog,
@@ -12,9 +12,9 @@ import {
   fireWarnLog,
   fireInfoLog,
   fireNotification,
-} from "./util/events.js";
+} from "./util/events";
 
-import { XBotEvents } from "./util/constants.js";
+import { XBotEvents } from "./util/constants";
 
 import { promisify } from "util";
 const execAsync = promisify(exec);

@@ -1,4 +1,4 @@
-import { XBotEvents, LOG_LEVELS } from "./constants.js";
+import { XBotEvents, LOG_LEVELS } from "./constants";
 
 let eventEmitter;
 

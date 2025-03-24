@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 import fetch from "node-fetch";
-import { fireDebugLog, fireErrorLog } from "./events.js";
+import { fireDebugLog, fireErrorLog } from "./events";
 import * as fs from 'fs/promises';
 
 export async function deleteFolder(folderPath) {
