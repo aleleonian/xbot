@@ -345,6 +345,12 @@ class XBot extends EventEmitter {
         );
       fireDebugLog("Found and typed TWITTER_NEW_TWEET_INPUT");
 
+      // we now have to hide the hashtag dialog if its present so we can properly
+      // click the post button
+      // we'll do this by sending an 'esc'
+
+      await this.page.keyboard.press("Escape");
+
       foundAndClicked = await this.findAndClick(
         process.env.TWITTER_POST_BUTTON
       );
