@@ -139,9 +139,9 @@ class XBot extends EventEmitter {
   getTweet(userId) {
     return this.tweets[userId];
   }
-  async init(persistLogin = true, needToDeleteChromeDataFolder = false) {
+  async init(baseDir = "./", persistLogin = true, needToDeleteChromeDataFolder = false) {
 
-    const chromeDataFolder = path.resolve("./chrome_data");
+    const chromeDataFolder = path.resolve(baseDir, "./chrome_data");
 
     if (needToDeleteChromeDataFolder) await deleteFolder(chromeDataFolder);
 
