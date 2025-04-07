@@ -534,7 +534,7 @@ class XBot extends EventEmitter {
     //NOW WE've got to check whether we are at the home or the login page.
     //if we're at the home, that's because of a saved session in chrome_data
     //TODO: why does it work in papparazzi but it does not work in savedX?
-    await this.wait(2000);
+    await this.wait(3500);
     const currentUrl = this.getCurrentBotUrl();
     fireInfoLog("We're at " + currentUrl);
     if (currentUrl === "https://x.com/home") {
